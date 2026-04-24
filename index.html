@@ -767,20 +767,33 @@
       <div id="proxy-guide" style="display:none; margin-top: 16px; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.7;">
         <div style="font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 10px; color: var(--gold);">Cloudflare Worker Setup (free tier)</div>
         <ol style="padding-left: 20px; color: var(--text-dim);">
-          <li style="margin-bottom: 8px;">Sign up / log in at <strong style="color: var(--gold)">dash.cloudflare.com</strong> (free)</li>
-          <li style="margin-bottom: 8px;">Left sidebar → <strong>Workers &amp; Pages</strong> → <strong>Create</strong> → <strong>Create Worker</strong></li>
-          <li style="margin-bottom: 8px;">Name it <span class="kb">card-vault-proxy</span> → <strong>Deploy</strong></li>
-          <li style="margin-bottom: 8px;">Click <strong>Edit code</strong>. Delete everything and paste the code from the <strong style="color: var(--gold)">"worker.js"</strong> button below. Click <strong>Deploy</strong>.</li>
-          <li style="margin-bottom: 8px;">Back at the worker's overview page, click <strong>Settings</strong> → <strong>Variables and Secrets</strong> → <strong>Add</strong>:
+          <li style="margin-bottom: 10px;">Sign in at <strong style="color: var(--gold)">dash.cloudflare.com</strong> (free account is fine)</li>
+          <li style="margin-bottom: 10px;">Left sidebar → <strong>Compute (Workers)</strong> (may appear under "Compute &amp; AI" depending on your dashboard). Click <strong>Workers &amp; Pages</strong>.</li>
+          <li style="margin-bottom: 10px;">Click <strong>Create</strong> (or <strong>Create application</strong>) → <strong>Start with Hello World!</strong> → <strong>Get started</strong></li>
+          <li style="margin-bottom: 10px;">Name it <span class="kb">card-vault-proxy</span> → <strong>Deploy</strong>. Cloudflare creates a basic worker and gives you a <span class="kb">.workers.dev</span> URL.</li>
+          <li style="margin-bottom: 10px;">After deployment, click <strong>Continue to project</strong> (or <strong>Edit code</strong> from the worker's overview page).</li>
+          <li style="margin-bottom: 10px;">In the code editor, select all existing code in <span class="kb">worker.js</span> (or <span class="kb">index.js</span>), delete it, then paste the code from the <strong style="color: var(--gold)">"Show worker.js Code"</strong> button below. Click <strong>Deploy</strong> in the top right.</li>
+          <li style="margin-bottom: 10px;">Go back to the worker overview → <strong>Settings</strong> tab → scroll to <strong>Variables and Secrets</strong> → click <strong>Add</strong>:
             <ul style="margin-top: 4px; padding-left: 20px;">
               <li>Type: <strong>Secret</strong></li>
               <li>Variable name: <span class="kb">ANTHROPIC_API_KEY</span></li>
-              <li>Value: your API key from <strong style="color: var(--gold)">console.anthropic.com</strong> → API Keys</li>
+              <li>Value: your API key from <strong style="color: var(--gold)">console.anthropic.com</strong> → Settings → API Keys</li>
+              <li>Click <strong>Deploy</strong>.</li>
             </ul>
           </li>
-          <li style="margin-bottom: 8px;">(Optional but recommended) Add another secret <span class="kb">ALLOWED_ORIGIN</span> set to your GitHub Pages URL (e.g. <span class="kb">https://kellym.github.io</span>) to lock the proxy to only your site.</li>
-          <li style="margin-bottom: 8px;">Copy the worker's URL (at top of the page, ends in <span class="kb">.workers.dev</span>), paste it into the <strong>Proxy URL</strong> field above, click <strong>Save</strong>, then <strong>Test Connection</strong>.</li>
+          <li style="margin-bottom: 10px;">(Recommended) Click <strong>Add</strong> again:
+            <ul style="margin-top: 4px; padding-left: 20px;">
+              <li>Type: <strong>Secret</strong></li>
+              <li>Variable name: <span class="kb">ALLOWED_ORIGIN</span></li>
+              <li>Value: your GitHub Pages URL root, e.g. <span class="kb">https://yourname.github.io</span> (no trailing slash, no path)</li>
+              <li>Click <strong>Deploy</strong>. This locks the proxy to only your app.</li>
+            </ul>
+          </li>
+          <li style="margin-bottom: 10px;">On the worker overview page, copy the URL shown near the top (ends in <span class="kb">.workers.dev</span>). Paste it into the <strong>Proxy URL</strong> field above, click <strong>Save</strong>, then <strong>Test Connection</strong>. You should see "✓ Proxy reachable".</li>
         </ol>
+        <div style="margin-top: 14px; padding: 10px 12px; background: rgba(212, 168, 85, 0.08); border-left: 3px solid var(--gold); border-radius: 4px; font-size: 12px;">
+          <strong style="color: var(--gold)">Troubleshooting:</strong> If "Add" is missing under Variables and Secrets, make sure you clicked into your worker first (not the Workers & Pages landing page). If Test Connection fails with CORS errors, double-check <span class="kb">ALLOWED_ORIGIN</span> matches your GitHub Pages URL exactly.
+        </div>
         <div class="btn-row" style="margin-top: 14px;">
           <button class="btn btn-primary" id="btn-show-worker">Show worker.js Code</button>
           <button class="btn btn-secondary" id="btn-copy-worker">Copy to Clipboard</button>
