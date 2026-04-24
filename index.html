@@ -758,6 +758,15 @@
           <label>Proxy URL</label>
           <input type="url" id="proxy-url" placeholder="https://card-vault-proxy.yourname.workers.dev" />
         </div>
+        <div class="span-2">
+          <label>Claude Model</label>
+          <select id="proxy-model">
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (recommended — fast, vision-capable)</option>
+            <option value="claude-opus-4-7">Claude Opus 4.7 (most capable, higher cost)</option>
+            <option value="claude-opus-4-6">Claude Opus 4.6</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (cheapest, less accurate on tough cards)</option>
+          </select>
+        </div>
       </div>
       <div class="btn-row" style="margin-top: 12px;">
         <button class="btn btn-primary" id="btn-save-proxy">Save</button>
@@ -949,7 +958,9 @@ const Storage = {
 // -------- API config (for GitHub Pages deployment) --------
 const ApiConfig = {
   get proxyUrl() { return localStorage.getItem('cardvault:proxyUrl') || ''; },
-  set proxyUrl(v) { localStorage.setItem('cardvault:proxyUrl', v || ''); }
+  set proxyUrl(v) { localStorage.setItem('cardvault:proxyUrl', v || ''); },
+  get model() { return localStorage.getItem('cardvault:model') || 'claude-sonnet-4-6'; },
+  set model(v) { localStorage.setItem('cardvault:model', v || 'claude-sonnet-4-6'); }
 };
 
 // -------- State --------
@@ -1411,7 +1422,7 @@ $('#btn-ai').addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: ApiConfig.model,
         max_tokens: 1200,
         messages: [{ role: 'user', content }]
       })
@@ -2115,8 +2126,9 @@ function updateProxyStatusPill() {
 }
 
 function renderSettings() {
-  // Populate proxy URL
+  // Populate proxy URL + model
   $('#proxy-url').value = ApiConfig.proxyUrl;
+  $('#proxy-model').value = ApiConfig.model;
   updateProxyStatusPill();
 
   // Storage usage
@@ -2188,8 +2200,9 @@ document.addEventListener('click', async (e) => {
       toast('Proxy URL must start with https://', 'error'); return;
     }
     ApiConfig.proxyUrl = url;
+    ApiConfig.model = $('#proxy-model').value;
     updateProxyStatusPill();
-    toast('Proxy URL saved', 'success');
+    toast('Proxy settings saved', 'success');
   }
   else if (e.target.id === 'btn-test-proxy') {
     const url = $('#proxy-url').value.trim().replace(/\/$/, '');
