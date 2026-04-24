@@ -981,17 +981,18 @@ const state = {
 const DEFAULT_IDENTIFIERS = [
   { key: 'player', label: 'Player Name', description: 'Full name of the athlete/player pictured on the card', type: 'text', enabled: true, core: true, standard: true },
   { key: 'sport', label: 'Sport', description: 'Sport category — one of: Baseball, Basketball, Football, Hockey, Soccer, Golf, Racing, Boxing/MMA, Multi-Sport, Other', type: 'text', enabled: true, core: true, standard: true },
-  { key: 'year', label: 'Year', description: '4-digit year printed on the card (copyright or set year)', type: 'number', enabled: true, core: true, standard: true },
+  { key: 'year', label: 'Year', description: '4-digit year of the card. First check for a printed copyright year (usually on the back). If not visible, infer from the set design, the player\'s team/uniform in that era, rookie status, or other visual context clues. Only return null if truly impossible to determine even approximately.', type: 'number', enabled: true, core: true, standard: true },
   { key: 'brand', label: 'Brand', description: 'Manufacturer/brand such as Topps, Panini, Bowman, Upper Deck, Fleer, Donruss, etc.', type: 'text', enabled: true, standard: true },
   { key: 'setName', label: 'Set / Series', description: 'Specific set or series name (e.g., Chrome, Update, Heritage, Prizm, Select)', type: 'text', enabled: true, standard: true },
-  { key: 'cardNumber', label: 'Card Number (printed)', description: 'Number printed on the card itself (e.g., 27, US150, BDC-72)', type: 'text', enabled: true, standard: true },
+  { key: 'cardNumber', label: 'Card Number (printed)', description: 'Number printed on the card itself (e.g., 27, US150, BDC-72). This is almost always on the BACK of the card — if only the front is provided and no number is visible, return empty string.', type: 'text', enabled: true, standard: true },
   { key: 'parallel', label: 'Parallel / Variant', description: 'Parallel version if any (e.g., Refractor, Silver Prizm, Gold, Rainbow Foil). Empty if base.', type: 'text', enabled: true, standard: true },
   { key: 'serialNumber', label: 'Serial Number', description: 'Serial number if limited/numbered (e.g., "12/99", "5/25"). Empty if unnumbered.', type: 'text', enabled: true, standard: true },
   { key: 'team', label: 'Team', description: 'Team depicted on the card', type: 'text', enabled: true, standard: true },
   { key: 'isRookie', label: 'Rookie Card', description: 'True if the card shows an RC logo, "Rookie" text, or is a known rookie-year card', type: 'boolean', enabled: true, standard: true },
   { key: 'isAuto', label: 'Autograph', description: 'True if the card has an on-card or sticker signature', type: 'boolean', enabled: true, standard: true },
   { key: 'isRelic', label: 'Relic / Patch', description: 'True if the card contains a jersey, bat, patch, or other memorabilia swatch', type: 'boolean', enabled: true, standard: true },
-  { key: 'isShortPrint', label: 'Short Print', description: 'True if this is a short print (SP) or super short print (SSP) variation', type: 'boolean', enabled: true, standard: true }
+  { key: 'isShortPrint', label: 'Short Print', description: 'True if this is a short print (SP) or super short print (SSP) variation', type: 'boolean', enabled: true, standard: true },
+  { key: 'rawPrice', label: 'Raw Market Price ($)', description: 'Estimated current raw market value in USD for this card in near-mint condition, based on typical recent sales (eBay comps, etc.) from your training knowledge. Return a numeric estimate (e.g., 5.00, 25, 150) or 0 if you have no reasonable basis for an estimate. Do not include currency symbols. Be conservative for common base cards — most modern base cards of non-stars are under $2.', type: 'number', enabled: false, standard: true }
 ];
 
 function standardKeys() { return new Set(DEFAULT_IDENTIFIERS.map(i => i.key)); }
@@ -1389,7 +1390,9 @@ function buildAIPrompt() {
     ? `,\n  "customFields": {\n${customLines.join(',\n')}\n  }`
     : '';
 
-  return `Extract the card details from the image(s). Respond with ONLY a JSON object (no markdown, no code fences, no commentary) using these fields. Use null or empty string for anything you cannot determine — do NOT guess:
+  return `You are identifying a sports trading card from one or more photos. Extract the card details and respond with ONLY a JSON object (no markdown, no code fences, no commentary).
+
+For each field, follow the description carefully. Some fields explicitly allow inference from visual context (player's team, uniform era, set design, etc.) — use that license when granted. For fields that don't explicitly allow inference, use null or empty string if you cannot determine the value from what's visible.
 {
 ${standardLines.join(',\n')}${customBlock}
 }`;
@@ -1445,10 +1448,12 @@ $('#btn-ai').addEventListener('click', async () => {
     const fieldMap = {
       player: '#fld-player', sport: '#fld-sport', year: '#fld-year', brand: '#fld-brand',
       setName: '#fld-set', cardNumber: '#fld-num', parallel: '#fld-parallel',
-      serialNumber: '#fld-serial', team: '#fld-team'
+      serialNumber: '#fld-serial', team: '#fld-team', rawPrice: '#fld-rawprice'
     };
     Object.entries(fieldMap).forEach(([key, sel]) => {
-      if (enabledKeys.has(key) && parsed[key]) $(sel).value = parsed[key];
+      if (enabledKeys.has(key) && parsed[key] !== null && parsed[key] !== undefined && parsed[key] !== '' && parsed[key] !== 0) {
+        $(sel).value = parsed[key];
+      }
     });
     const boolMap = { isRookie: '#fld-rookie', isAuto: '#fld-auto', isRelic: '#fld-relic', isShortPrint: '#fld-shortprint' };
     Object.entries(boolMap).forEach(([key, sel]) => {
