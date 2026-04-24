@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Card Vault — Sports Card Scanner & Cataloger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-card: #131825;
+    --bg-elev: #1a2133;
+    --border: #1f2940;
+    --border-strong: #2a3552;
+    --text: #e8eef5;
+    --text-dim: #8892a6;
+    --text-faint: #4a5668;
+    --gold: #d4a855;
+    --gold-bright: #f0c274;
+    --gold-dark: #8b6a2f;
+    --green: #34d399;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --font-display: 'Oswald', sans-serif;
+    --font-body: 'Figtree', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  body {
+    background-image:
+      radial-gradient(ellipse at top left, rgba(212, 168, 85, 0.06), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(96, 165, 250, 0.04), transparent 50%);
+    background-attachment: fixed;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, select, textarea { font-family: inherit; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px; width: 100%; transition: border-color 0.15s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; }
+
+  /* Header */
+  .header {
+    border-bottom: 1px solid var(--border);
+    background: rgba(10, 14, 26, 0.85);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .header-inner { max-width: 1400px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 24px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+    border-radius: 6px;
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-weight: 700; color: #1a1208; font-size: 20px;
+    box-shadow: 0 0 0 1px rgba(240, 194, 116, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .logo-text { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: 0.02em; text-transform: uppercase; }
+  .logo-text span { color: var(--gold); }
+  .tabs { display: flex; gap: 4px; margin-left: auto; }
+  .tab {
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    color: var(--text-dim); letter-spacing: 0.03em; text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); background: var(--bg-elev); }
+  .tab.active { color: var(--gold); background: rgba(212, 168, 85, 0.1); }
+
+  /* Main */
+  .main { max-width: 1400px; margin: 0 auto; padding: 24px 20px 80px; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade 0.25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Headings */
+  .view-title { font-family: var(--font-display); font-size: 28px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 4px; }
+  .view-subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+
+  /* Collection */
+  .filter-bar {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; display: grid; grid-template-columns: 1fr repeat(5, minmax(0, 150px)) auto;
+    gap: 10px; margin-bottom: 20px; align-items: end;
+  }
+  .filter-bar label { margin-bottom: 4px; }
+  .filter-bar input, .filter-bar select { padding: 8px 10px; font-size: 13px; }
+  .btn-reset { background: var(--bg-elev); padding: 8px 14px; border-radius: 6px; font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border); transition: all 0.15s; }
+  .btn-reset:hover { color: var(--text); border-color: var(--border-strong); }
+
+  .collection-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: var(--text-dim); font-size: 13px; font-family: var(--font-mono); }
+  .count-badge { color: var(--gold); font-weight: 700; }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .card-tile {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    transition: all 0.2s ease;
+    cursor: pointer; position: relative;
+    display: flex; flex-direction: column;
+  }
+  .card-tile:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px var(--gold); }
+  .card-tile-img {
+    aspect-ratio: 2.5 / 3.5;
+    background: linear-gradient(135deg, #0f1420, #1a2133);
+    display: grid; place-items: center;
+    position: relative; overflow: hidden;
+  }
+  .card-tile-img img { width: 100%; height: 100%; object-fit: cover; }
+  .card-tile-img-empty { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  .card-badges { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .badge {
+    padding: 3px 7px; border-radius: 4px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+  }
+  .badge.rc { background: var(--gold); color: #1a1208; }
+  .badge.auto { background: var(--blue); color: #0a0e1a; }
+  .badge.relic { background: var(--purple); color: #0a0e1a; }
+  .badge.graded { background: var(--green); color: #0a0e1a; }
+  .badge.serial { background: rgba(255,255,255,0.95); color: #000; }
+
+  .card-tile-body { padding: 10px 12px; flex: 1; display: flex; flex-direction: column; }
+  .card-player { font-weight: 600; font-size: 14px; line-height: 1.2; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 6px; align-items: center; }
+  .card-meta .dot { width: 2px; height: 2px; background: var(--text-faint); border-radius: 50%; }
+  .card-price { margin-top: 6px; font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 14px; }
+  .card-price-sub { color: var(--text-dim); font-size: 10px; font-weight: 500; margin-left: 4px; }
+
+  .empty-state {
+    background: var(--bg-card); border: 1px dashed var(--border-strong);
+    border-radius: 12px; padding: 60px 20px; text-align: center;
+  }
+  .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state-title { font-family: var(--font-display); font-size: 20px; text-transform: uppercase; margin-bottom: 6px; }
+  .empty-state-sub { color: var(--text-dim); margin-bottom: 20px; }
+
+  /* Scan view */
+  .scan-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 960px) { .scan-layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .panel-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .panel-title::before { content: ''; width: 3px; height: 16px; background: var(--gold); border-radius: 2px; }
+
+  .capture-area { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .capture-slot {
+    aspect-ratio: 2.5 / 3.5;
+    background: #0f1420;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    position: relative; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .capture-slot img { width: 100%; height: 100%; object-fit: cover; }
+  .capture-slot-label { position: absolute; top: 6px; left: 6px; font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 3px; }
+  .capture-slot-empty { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  #camera-video { width: 100%; max-height: 400px; background: #000; border-radius: 8px; border: 1px solid var(--border); }
+  #camera-hidden { display: none; }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    transition: all 0.15s; border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+  }
+  .btn-primary { background: var(--gold); color: #1a1208; }
+  .btn-primary:hover:not(:disabled) { background: var(--gold-bright); box-shadow: 0 4px 14px rgba(212, 168, 85, 0.3); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: var(--bg-elev); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--border-strong); background: var(--border); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(248, 113, 113, 0.3); }
+  .btn-danger:hover { background: rgba(248, 113, 113, 0.1); border-color: var(--red); }
+  .btn-ai { background: linear-gradient(135deg, #8b5cf6, #60a5fa); color: white; }
+  .btn-ai:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4); transform: translateY(-1px); }
+  .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-block { width: 100%; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .span-2 { grid-column: 1 / -1; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .attr-row { display: flex; gap: 16px; flex-wrap: wrap; padding: 12px; background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); }
+  .checkbox-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; user-select: none; }
+  .checkbox-wrap input { width: auto; margin: 0; }
+
+  .ai-status {
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.08), rgba(96, 165, 250, 0.08));
+    border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px; margin-bottom: 12px; display: none;
+  }
+  .ai-status.show { display: block; }
+  .ai-status.success { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.06); color: var(--green); }
+  .ai-status.error { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.06); color: var(--red); }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 760px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--gold); }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); font-weight: 600; margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-mono); font-size: 26px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono); }
+  .stat-sub.green { color: var(--green); }
+  .stat-sub.red { color: var(--red); }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 960px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-container { position: relative; height: 280px; }
+
+  .top-list { list-style: none; }
+  .top-list li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .top-list li:last-child { border-bottom: none; }
+  .top-list .name { font-weight: 600; }
+  .top-list .val { font-family: var(--font-mono); color: var(--gold); font-weight: 700; }
+
+  /* Data */
+  .data-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .data-row { grid-template-columns: 1fr; } }
+  .kb { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--gold); border: 1px solid var(--border); }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 14px;
+    max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+  }
+  .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+  .modal-title { font-family: var(--font-display); font-size: 18px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .modal-close { color: var(--text-dim); font-size: 24px; padding: 4px 10px; border-radius: 6px; }
+  .modal-close:hover { background: var(--bg-elev); color: var(--text); }
+  .modal-body { padding: 20px; }
+
+  .detail-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .detail-layout { grid-template-columns: 1fr; } }
+  .detail-images { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-img { aspect-ratio: 2.5 / 3.5; border-radius: 8px; overflow: hidden; background: #0f1420; border: 1px solid var(--border); display: grid; place-items: center; }
+  .detail-img img { width: 100%; height: 100%; object-fit: cover; }
+  .detail-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+  .detail-field .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); font-weight: 600; margin-bottom: 3px; }
+  .detail-field .v { font-size: 14px; font-weight: 500; }
+  .detail-field.span-2 { grid-column: span 2; }
+  .price-block { display: flex; gap: 18px; margin-top: 12px; padding: 14px; background: var(--bg-elev); border-radius: 10px; border: 1px solid var(--border); }
+  .price-item { flex: 1; }
+  .price-item .l { font-size: 10px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.08em; font-weight: 600; margin-bottom: 3px; }
+  .price-item .v { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--gold); }
+
+  /* Toast */
+  .toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 8px;
+    padding: 12px 16px; font-size: 13px; min-width: 260px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: slide 0.25s ease;
+    border-left: 3px solid var(--gold);
+  }
+  .toast.success { border-left-color: var(--green); }
+  .toast.error { border-left-color: var(--red); }
+  @keyframes slide { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* Mobile */
+  @media (max-width: 720px) {
+    .header-inner { padding: 12px; gap: 10px; flex-wrap: wrap; }
+    .logo-text { font-size: 18px; }
+    .tabs { width: 100%; order: 2; overflow-x: auto; }
+    .tab { padding: 6px 10px; font-size: 11px; white-space: nowrap; }
+    .filter-bar { grid-template-columns: 1fr 1fr; }
+    .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+    .main { padding: 16px 12px 80px; }
+    .view-title { font-size: 22px; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+  /* Loading spinner */
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Price override block */
+  .price-override {
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; display: grid; grid-template-columns: 1fr 160px; gap: 12px; align-items: center;
+  }
+  .price-override input[type="number"] { margin-top: 0; }
+  .price-override input[type="number"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Custom fields */
+  #custom-fields-container { display: grid; gap: 10px; }
+  .custom-field-row { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 10px; background: var(--bg-elev); border-radius: 6px; border: 1px solid var(--border); }
+  .custom-field-row label { margin-bottom: 2px; }
+  .custom-field-row .hint { font-size: 11px; color: var(--text-faint); font-style: italic; }
+
+  /* Settings view */
+  .settings-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .settings-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .settings-note { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; }
+
+  .ident-list { display: grid; gap: 8px; }
+  .ident-item {
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center;
+    padding: 12px 14px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px;
+    transition: border-color 0.15s;
+  }
+  .ident-item.disabled { opacity: 0.55; }
+  .ident-item:hover { border-color: var(--border-strong); }
+  .ident-item.custom { border-left: 3px solid var(--gold); }
+  .ident-toggle {
+    width: 40px; height: 22px; background: var(--border); border-radius: 12px; position: relative;
+    cursor: pointer; flex-shrink: 0; transition: background 0.2s;
+  }
+  .ident-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+    background: var(--text-dim); border-radius: 50%; transition: all 0.2s;
+  }
+  .ident-toggle.on { background: rgba(212, 168, 85, 0.3); }
+  .ident-toggle.on::after { left: 20px; background: var(--gold); }
+  .ident-info .ident-label { font-weight: 600; font-size: 14px; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+  .ident-info .ident-key { font-family: var(--font-mono); font-size: 10px; color: var(--gold); background: rgba(212, 168, 85, 0.08); padding: 2px 6px; border-radius: 3px; }
+  .ident-info .ident-desc { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+  .ident-type-pill {
+    font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 3px; background: var(--bg-card); color: var(--text-dim); border: 1px solid var(--border);
+  }
+  .ident-actions { display: flex; gap: 4px; }
+  .icon-btn { padding: 6px 8px; border-radius: 5px; color: var(--text-dim); font-size: 12px; }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+  .icon-btn.danger:hover { color: var(--red); }
+
+  /* Card ID badge on tile */
+  .card-vault-id {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    padding: 3px 7px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    color: var(--gold); letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">CV</div>
+      <div class="logo-text">Card<span>Vault</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-view="collection">Collection</button>
+      <button class="tab" data-view="scan">Scan / Add</button>
+      <button class="tab" data-view="stats">Stats</button>
+      <button class="tab" data-view="data">Data</button>
+      <button class="tab" data-view="settings">Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- COLLECTION VIEW -->
+  <div class="view active" id="view-collection">
+    <h1 class="view-title">The Collection</h1>
+    <p class="view-subtitle">Browse, search, and manage your sports card inventory.</p>
+
+    <div class="filter-bar">
+      <div>
+        <label>Search</label>
+        <input type="text" id="f-search" placeholder="Player, brand, set, notes..." />
+      </div>
+      <div>
+        <label>Sport</label>
+        <select id="f-sport"><option value="">All</option></select>
+      </div>
+      <div>
+        <label>Year</label>
+        <select id="f-year"><option value="">All</option></select>
+      </div>
+      <div>
+        <label>Brand</label>
+        <select id="f-brand"><option value="">All</option></select>
+      </div>
+      <div>
+        <label>Attribute</label>
+        <select id="f-attr">
+          <option value="">All</option>
+          <option value="rookie">Rookie</option>
+          <option value="auto">Autograph</option>
+          <option value="relic">Relic/Patch</option>
+          <option value="graded">Graded</option>
+          <option value="serial">Serial #'d</option>
+        </select>
+      </div>
+      <div>
+        <label>Sort</label>
+        <select id="f-sort">
+          <option value="added-desc">Recently Added</option>
+          <option value="added-asc">Oldest Added</option>
+          <option value="value-desc">Highest Value</option>
+          <option value="value-asc">Lowest Value</option>
+          <option value="year-desc">Newest Year</option>
+          <option value="year-asc">Oldest Year</option>
+          <option value="player-asc">Player A-Z</option>
+        </select>
+      </div>
+      <button class="btn-reset" id="f-reset">Reset</button>
+    </div>
+
+    <div class="collection-meta">
+      <div>Showing <span class="count-badge" id="count-showing">0</span> of <span id="count-total">0</span> cards</div>
+      <div>Total Value: <span class="count-badge" id="count-value">$0.00</span></div>
+    </div>
+
+    <div id="card-grid" class="card-grid"></div>
+
+    <div id="empty" class="empty-state" style="display:none">
+      <div class="empty-state-icon">🎴</div>
+      <div class="empty-state-title">Vault is Empty</div>
+      <div class="empty-state-sub">Scan or manually add your first card to get started.</div>
+      <button class="btn btn-primary" onclick="switchView('scan')">Add First Card</button>
+    </div>
+  </div>
+
+  <!-- SCAN VIEW -->
+  <div class="view" id="view-scan">
+    <h1 class="view-title">Scan &amp; Add</h1>
+    <p class="view-subtitle">Capture photos, auto-identify with AI, and log card details.</p>
+
+    <div class="scan-layout">
+
+      <div>
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-title">Camera</div>
+          <video id="camera-video" autoplay playsinline muted></video>
+          <canvas id="camera-hidden"></canvas>
+          <div class="btn-row" style="margin-top: 12px;">
+            <button class="btn btn-secondary" id="btn-cam-start">Start Camera</button>
+            <button class="btn btn-secondary" id="btn-cam-flip" disabled>Flip</button>
+            <button class="btn btn-primary" id="btn-cap-front" disabled>Capture Front</button>
+            <button class="btn btn-primary" id="btn-cap-back" disabled>Capture Back</button>
+            <button class="btn btn-secondary" id="btn-cam-stop" disabled>Stop</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Captured Images</div>
+          <div class="capture-area">
+            <div class="capture-slot" id="slot-front">
+              <div class="capture-slot-label">Front</div>
+              <div class="capture-slot-empty">No image</div>
+            </div>
+            <div class="capture-slot" id="slot-back">
+              <div class="capture-slot-label">Back</div>
+              <div class="capture-slot-empty">No image</div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ai" id="btn-ai" disabled>✨ Identify with AI</button>
+            <label for="file-upload" class="btn btn-secondary" style="cursor:pointer">Upload File</label>
+            <input type="file" id="file-upload" accept="image/*" style="display:none" multiple />
+            <button class="btn btn-danger" id="btn-clear-img">Clear</button>
+          </div>
+          <div class="ai-status" id="ai-status"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Card Details</div>
+
+        <div class="form-grid">
+          <div>
+            <label>Card ID (Inventory)</label>
+            <input type="text" id="fld-cardid" placeholder="Auto" />
+          </div>
+          <div>
+            <label>Player Name *</label>
+            <input type="text" id="fld-player" placeholder="e.g., Mike Trout" />
+          </div>
+          <div>
+            <label>Sport *</label>
+            <select id="fld-sport">
+              <option value="Baseball">Baseball</option>
+              <option value="Basketball">Basketball</option>
+              <option value="Football">Football</option>
+              <option value="Hockey">Hockey</option>
+              <option value="Soccer">Soccer</option>
+              <option value="Golf">Golf</option>
+              <option value="Racing">Racing</option>
+              <option value="Boxing/MMA">Boxing/MMA</option>
+              <option value="Multi-Sport">Multi-Sport</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Year *</label>
+            <input type="number" id="fld-year" placeholder="2024" min="1800" max="2099" />
+          </div>
+          <div>
+            <label>Brand</label>
+            <input type="text" id="fld-brand" placeholder="Topps, Panini, Bowman..." list="brand-list" />
+            <datalist id="brand-list">
+              <option value="Topps"><option value="Topps Chrome"><option value="Bowman"><option value="Bowman Chrome">
+              <option value="Panini"><option value="Panini Prizm"><option value="Panini Select"><option value="Panini Donruss">
+              <option value="Panini Optic"><option value="Panini Mosaic"><option value="Panini Contenders"><option value="Panini National Treasures">
+              <option value="Upper Deck"><option value="Fleer"><option value="Score"><option value="Donruss">
+              <option value="Leaf"><option value="Pinnacle"><option value="SAGE"><option value="Sage Hit">
+            </datalist>
+          </div>
+          <div>
+            <label>Set / Series</label>
+            <input type="text" id="fld-set" placeholder="e.g., Chrome, Update, Heritage" />
+          </div>
+          <div>
+            <label>Card Number</label>
+            <input type="text" id="fld-num" placeholder="e.g., 27, US150, BDC-72" />
+          </div>
+          <div>
+            <label>Parallel / Variant</label>
+            <input type="text" id="fld-parallel" placeholder="e.g., Refractor, Silver Prizm" />
+          </div>
+          <div>
+            <label>Serial # (if numbered)</label>
+            <input type="text" id="fld-serial" placeholder="e.g., 12/99" />
+          </div>
+          <div>
+            <label>Team</label>
+            <input type="text" id="fld-team" placeholder="Optional" />
+          </div>
+
+          <div class="span-2">
+            <label>Attributes</label>
+            <div class="attr-row">
+              <label class="checkbox-wrap"><input type="checkbox" id="fld-rookie" /> Rookie Card (RC)</label>
+              <label class="checkbox-wrap"><input type="checkbox" id="fld-auto" /> Autograph</label>
+              <label class="checkbox-wrap"><input type="checkbox" id="fld-relic" /> Relic / Patch</label>
+              <label class="checkbox-wrap"><input type="checkbox" id="fld-shortprint" /> Short Print / SSP</label>
+            </div>
+          </div>
+
+          <div>
+            <label>Condition (Raw)</label>
+            <select id="fld-condition">
+              <option value="Mint">Mint (M)</option>
+              <option value="Near Mint" selected>Near Mint (NM)</option>
+              <option value="Excellent">Excellent (EX)</option>
+              <option value="Very Good">Very Good (VG)</option>
+              <option value="Good">Good (G)</option>
+              <option value="Fair">Fair (F)</option>
+              <option value="Poor">Poor (P)</option>
+            </select>
+          </div>
+          <div>
+            <label>Graded?</label>
+            <select id="fld-graded">
+              <option value="no">Raw (Ungraded)</option>
+              <option value="yes">Professionally Graded</option>
+            </select>
+          </div>
+
+          <div class="form-grid-3 span-2" id="grade-block" style="display:none">
+            <div>
+              <label>Grading Co.</label>
+              <select id="fld-grade-co">
+                <option>PSA</option><option>BGS</option><option>SGC</option><option>CGC</option><option>HGA</option><option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label>Grade</label>
+              <input type="text" id="fld-grade" placeholder="e.g., 10, 9.5, BGS 9.5/10" />
+            </div>
+            <div>
+              <label>Cert Number</label>
+              <input type="text" id="fld-cert" placeholder="Optional" />
+            </div>
+          </div>
+
+          <div>
+            <label>Purchase Price ($)</label>
+            <input type="number" id="fld-cost" placeholder="0.00" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>Raw Market Price ($)</label>
+            <input type="number" id="fld-rawprice" placeholder="0.00" step="0.01" min="0" />
+          </div>
+
+          <div class="span-2">
+            <label>Static Price Override</label>
+            <div class="price-override">
+              <label class="checkbox-wrap">
+                <input type="checkbox" id="fld-use-static" />
+                <span>Use static price as current value (overrides raw market)</span>
+              </label>
+              <input type="number" id="fld-staticprice" placeholder="0.00" step="0.01" min="0" disabled />
+            </div>
+          </div>
+
+          <div class="span-2">
+            <label>Notes</label>
+            <textarea id="fld-notes" rows="2" placeholder="Centering, edges, storage location, purchase source..."></textarea>
+          </div>
+
+          <div class="span-2" id="custom-fields-section" style="display:none">
+            <label>Custom Fields</label>
+            <div id="custom-fields-container"></div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top: 18px;">
+          <button class="btn btn-primary btn-block" id="btn-save">Save to Vault</button>
+          <button class="btn btn-secondary" id="btn-reset-form">Reset Form</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS VIEW -->
+  <div class="view" id="view-stats">
+    <h1 class="view-title">Collection Stats</h1>
+    <p class="view-subtitle">Inventory insights and portfolio performance.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Cards</div>
+        <div class="stat-value" id="s-count">0</div>
+        <div class="stat-sub" id="s-count-sub">0 unique players</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Cost</div>
+        <div class="stat-value" id="s-cost">$0.00</div>
+        <div class="stat-sub" id="s-cost-sub">All purchases</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Market Value</div>
+        <div class="stat-value" id="s-value">$0.00</div>
+        <div class="stat-sub" id="s-value-sub">Current estimate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Unrealized P/L</div>
+        <div class="stat-value" id="s-pnl">$0.00</div>
+        <div class="stat-sub" id="s-pnl-sub">0%</div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-wrap">
+        <div class="panel-title">By Sport</div>
+        <div class="chart-container"><canvas id="chart-sport"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="panel-title">By Brand</div>
+        <div class="chart-container"><canvas id="chart-brand"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-wrap">
+        <div class="panel-title">Cards by Year</div>
+        <div class="chart-container"><canvas id="chart-year"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="panel-title">Top Players by Value</div>
+        <ul class="top-list" id="top-players"></ul>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-wrap">
+        <div class="panel-title">Attribute Breakdown</div>
+        <div class="chart-container"><canvas id="chart-attr"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="panel-title">Value Distribution</div>
+        <div class="chart-container"><canvas id="chart-value-dist"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA VIEW -->
+  <div class="view" id="view-data">
+    <h1 class="view-title">Data Management</h1>
+    <p class="view-subtitle">Import, export, and back up your collection.</p>
+
+    <div class="data-row">
+      <div class="panel">
+        <div class="panel-title">Export</div>
+        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 14px;">
+          CSV export is compatible with Google Sheets &mdash; images are excluded from CSV to keep file sizes manageable.
+        </p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-export-csv">Export CSV</button>
+          <button class="btn btn-secondary" id="btn-export-json">Export JSON (with images)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Import</div>
+        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 14px;">
+          Import previously exported JSON (full backup) or CSV (metadata only).
+        </p>
+        <div class="btn-row">
+          <label for="import-csv" class="btn btn-secondary" style="cursor:pointer">Import CSV</label>
+          <input type="file" id="import-csv" accept=".csv" style="display:none" />
+          <label for="import-json" class="btn btn-secondary" style="cursor:pointer">Import JSON</label>
+          <input type="file" id="import-json" accept=".json" style="display:none" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="panel-title">Storage</div>
+      <div style="font-size: 13px; color: var(--text-dim); line-height: 1.7;">
+        Cards are saved automatically to persistent browser storage. Data persists across sessions on this device.<br>
+        Use <strong style="color: var(--gold)">Export JSON</strong> regularly for off-device backups.
+      </div>
+      <div class="btn-row" style="margin-top: 14px;">
+        <button class="btn btn-danger" id="btn-wipe">Wipe All Data</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="panel-title">Keyboard Shortcuts</div>
+      <div style="font-size: 13px; color: var(--text-dim); line-height: 2;">
+        <span class="kb">1</span> Collection &middot; <span class="kb">2</span> Scan &middot; <span class="kb">3</span> Stats &middot; <span class="kb">4</span> Data &middot; <span class="kb">5</span> Settings<br>
+        <span class="kb">/</span> Focus search &middot; <span class="kb">Esc</span> Close modal
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div class="view" id="view-settings">
+    <h1 class="view-title">Settings</h1>
+    <p class="view-subtitle">Configure scan identifiers, AI proxy, and custom fields.</p>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <div class="panel-title">AI Proxy</div>
+        <span id="proxy-status-pill" style="font-family: var(--font-mono); font-size:11px; padding:3px 8px; border-radius:4px; background: var(--bg-elev); color: var(--text-dim); border:1px solid var(--border);">Not configured</span>
+      </div>
+      <div class="settings-note">
+        The "Identify with AI" scan feature needs to reach Anthropic's API. Browsers block direct calls, so point this at your own Cloudflare Worker (or similar proxy) that holds your API key server-side. See the <strong style="color: var(--gold)">setup guide</strong> below.
+      </div>
+      <div class="form-grid">
+        <div class="span-2">
+          <label>Proxy URL</label>
+          <input type="url" id="proxy-url" placeholder="https://card-vault-proxy.yourname.workers.dev" />
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top: 12px;">
+        <button class="btn btn-primary" id="btn-save-proxy">Save</button>
+        <button class="btn btn-secondary" id="btn-test-proxy">Test Connection</button>
+        <button class="btn btn-secondary" id="btn-toggle-guide">Show Setup Guide</button>
+      </div>
+      <div id="proxy-guide" style="display:none; margin-top: 16px; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.7;">
+        <div style="font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 10px; color: var(--gold);">Cloudflare Worker Setup (free tier)</div>
+        <ol style="padding-left: 20px; color: var(--text-dim);">
+          <li style="margin-bottom: 10px;">Sign in at <strong style="color: var(--gold)">dash.cloudflare.com</strong> (free account is fine)</li>
+          <li style="margin-bottom: 10px;">Left sidebar → <strong>Compute (Workers)</strong> (may appear under "Compute &amp; AI" depending on your dashboard). Click <strong>Workers &amp; Pages</strong>.</li>
+          <li style="margin-bottom: 10px;">Click <strong>Create</strong> (or <strong>Create application</strong>) → <strong>Start with Hello World!</strong> → <strong>Get started</strong></li>
+          <li style="margin-bottom: 10px;">Name it <span class="kb">card-vault-proxy</span> → <strong>Deploy</strong>. Cloudflare creates a basic worker and gives you a <span class="kb">.workers.dev</span> URL.</li>
+          <li style="margin-bottom: 10px;">After deployment, click <strong>Continue to project</strong> (or <strong>Edit code</strong> from the worker's overview page).</li>
+          <li style="margin-bottom: 10px;">In the code editor, select all existing code in <span class="kb">worker.js</span> (or <span class="kb">index.js</span>), delete it, then paste the code from the <strong style="color: var(--gold)">"Show worker.js Code"</strong> button below. Click <strong>Deploy</strong> in the top right.</li>
+          <li style="margin-bottom: 10px;">Go back to the worker overview → <strong>Settings</strong> tab → scroll to <strong>Variables and Secrets</strong> → click <strong>Add</strong>:
+            <ul style="margin-top: 4px; padding-left: 20px;">
+              <li>Type: <strong>Secret</strong></li>
+              <li>Variable name: <span class="kb">ANTHROPIC_API_KEY</span></li>
+              <li>Value: your API key from <strong style="color: var(--gold)">console.anthropic.com</strong> → Settings → API Keys</li>
+              <li>Click <strong>Deploy</strong>.</li>
+            </ul>
+          </li>
+          <li style="margin-bottom: 10px;">(Recommended) Click <strong>Add</strong> again:
+            <ul style="margin-top: 4px; padding-left: 20px;">
+              <li>Type: <strong>Secret</strong></li>
+              <li>Variable name: <span class="kb">ALLOWED_ORIGIN</span></li>
+              <li>Value: your GitHub Pages URL root, e.g. <span class="kb">https://yourname.github.io</span> (no trailing slash, no path)</li>
+              <li>Click <strong>Deploy</strong>. This locks the proxy to only your app.</li>
+            </ul>
+          </li>
+          <li style="margin-bottom: 10px;">On the worker overview page, copy the URL shown near the top (ends in <span class="kb">.workers.dev</span>). Paste it into the <strong>Proxy URL</strong> field above, click <strong>Save</strong>, then <strong>Test Connection</strong>. You should see "✓ Proxy reachable".</li>
+        </ol>
+        <div style="margin-top: 14px; padding: 10px 12px; background: rgba(212, 168, 85, 0.08); border-left: 3px solid var(--gold); border-radius: 4px; font-size: 12px;">
+          <strong style="color: var(--gold)">Troubleshooting:</strong> If "Add" is missing under Variables and Secrets, make sure you clicked into your worker first (not the Workers & Pages landing page). If Test Connection fails with CORS errors, double-check <span class="kb">ALLOWED_ORIGIN</span> matches your GitHub Pages URL exactly.
+        </div>
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn btn-primary" id="btn-show-worker">Show worker.js Code</button>
+          <button class="btn btn-secondary" id="btn-copy-worker">Copy to Clipboard</button>
+        </div>
+        <pre id="worker-code" style="display:none; margin-top: 12px; background: #0a0e1a; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--gold-bright); overflow-x: auto; max-height: 400px; overflow-y: auto; white-space: pre;"></pre>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <div class="panel-title">Scan Identifiers</div>
+        <button class="btn btn-primary" id="btn-add-ident">+ Add Custom</button>
+      </div>
+      <div class="settings-note">
+        These are the fields the AI extracts when identifying a card. Toggle any off to skip, edit descriptions to steer the AI, or add your own custom fields.
+        Custom fields (gold-bordered) appear in the scan form and card details.
+      </div>
+      <div class="ident-list" id="ident-list"></div>
+      <div class="btn-row" style="margin-top: 16px;">
+        <button class="btn btn-secondary" id="btn-reset-ident">Reset to Defaults</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="panel-title">AI Prompt Preview</div>
+      <div class="settings-note">This is what Claude sees when you click "Identify with AI". Edit identifiers above to change it.</div>
+      <pre id="ai-prompt-preview" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); overflow-x: auto; white-space: pre-wrap; max-height: 320px; overflow-y: auto;"></pre>
+    </div>
+
+    <div class="settings-section">
+      <div class="panel-title">Storage</div>
+      <div class="settings-note">Card data and images are saved to this browser's local storage (roughly 5 MB limit). Export JSON backups regularly.</div>
+      <div style="font-family: var(--font-mono); font-size: 13px; color: var(--gold);" id="storage-usage">Calculating…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Add/edit identifier modal -->
+<div class="modal-backdrop" id="ident-modal">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="ident-modal-title">Add Custom Identifier</div>
+      <button class="modal-close" id="ident-modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="span-2">
+          <label>Label *</label>
+          <input type="text" id="ident-label" placeholder="e.g., Print Run, Population Report, Era" />
+        </div>
+        <div class="span-2">
+          <label>Key (auto from label)</label>
+          <input type="text" id="ident-key" placeholder="e.g., printRun" />
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="ident-type">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="boolean">Boolean (Yes/No)</option>
+          </select>
+        </div>
+        <div>
+          <label>Enabled for AI</label>
+          <select id="ident-enabled">
+            <option value="true">Yes — include in AI scan</option>
+            <option value="false">No — manual only</option>
+          </select>
+        </div>
+        <div class="span-2">
+          <label>Description (used by AI)</label>
+          <textarea id="ident-desc" rows="3" placeholder="Tell Claude how to identify this from the card image"></textarea>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top: 16px;">
+        <button class="btn btn-primary" id="ident-save">Save</button>
+        <button class="btn btn-secondary" id="ident-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-title">Card Details</div>
+      <button class="modal-close" id="detail-close">&times;</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<script>
+/* ==========================================================================
+   CARD VAULT — Sports Card Scanner & Cataloger
+   ========================================================================== */
+
+// -------- Storage abstraction (localStorage-backed for GitHub Pages) --------
+const Storage = {
+  _prefix: 'cardvault:',
+  get(key) {
+    try {
+      const raw = localStorage.getItem(this._prefix + key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error('Storage.get failed:', e);
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(this._prefix + key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      // QuotaExceededError is the big one — surface it to the user
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        toast('Storage full — export a JSON backup and delete some cards', 'error');
+      } else {
+        console.error('Storage.set failed:', e);
+      }
+      return false;
+    }
+  },
+  delete(key) {
+    try { localStorage.removeItem(this._prefix + key); } catch {}
+  },
+  list(prefix) {
+    const full = this._prefix + (prefix || '');
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(full)) out.push(k.slice(this._prefix.length));
+    }
+    return out;
+  },
+  // Returns an estimate of bytes used by this app
+  usage() {
+    let bytes = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(this._prefix)) {
+        bytes += (k.length + (localStorage.getItem(k) || '').length) * 2; // UTF-16
+      }
+    }
+    return bytes;
+  }
+};
+
+// -------- API config (for GitHub Pages deployment) --------
+const ApiConfig = {
+  get proxyUrl() { return localStorage.getItem('cardvault:proxyUrl') || ''; },
+  set proxyUrl(v) { localStorage.setItem('cardvault:proxyUrl', v || ''); }
+};
+
+// -------- State --------
+const state = {
+  cards: [],          // array of card metadata (no images)
+  images: {},         // id -> { front, back } loaded lazily
+  editingId: null,
+  capturedFront: null,
+  capturedBack: null,
+  stream: null,
+  currentFacing: 'environment',
+  charts: {},
+  identifiers: [],    // configurable scan identifiers
+  editingIdentKey: null
+};
+
+// -------- Default identifiers (matched to standard fields) --------
+const DEFAULT_IDENTIFIERS = [
+  { key: 'player', label: 'Player Name', description: 'Full name of the athlete/player pictured on the card', type: 'text', enabled: true, core: true, standard: true },
+  { key: 'sport', label: 'Sport', description: 'Sport category — one of: Baseball, Basketball, Football, Hockey, Soccer, Golf, Racing, Boxing/MMA, Multi-Sport, Other', type: 'text', enabled: true, core: true, standard: true },
+  { key: 'year', label: 'Year', description: '4-digit year printed on the card (copyright or set year)', type: 'number', enabled: true, core: true, standard: true },
+  { key: 'brand', label: 'Brand', description: 'Manufacturer/brand such as Topps, Panini, Bowman, Upper Deck, Fleer, Donruss, etc.', type: 'text', enabled: true, standard: true },
+  { key: 'setName', label: 'Set / Series', description: 'Specific set or series name (e.g., Chrome, Update, Heritage, Prizm, Select)', type: 'text', enabled: true, standard: true },
+  { key: 'cardNumber', label: 'Card Number (printed)', description: 'Number printed on the card itself (e.g., 27, US150, BDC-72)', type: 'text', enabled: true, standard: true },
+  { key: 'parallel', label: 'Parallel / Variant', description: 'Parallel version if any (e.g., Refractor, Silver Prizm, Gold, Rainbow Foil). Empty if base.', type: 'text', enabled: true, standard: true },
+  { key: 'serialNumber', label: 'Serial Number', description: 'Serial number if limited/numbered (e.g., "12/99", "5/25"). Empty if unnumbered.', type: 'text', enabled: true, standard: true },
+  { key: 'team', label: 'Team', description: 'Team depicted on the card', type: 'text', enabled: true, standard: true },
+  { key: 'isRookie', label: 'Rookie Card', description: 'True if the card shows an RC logo, "Rookie" text, or is a known rookie-year card', type: 'boolean', enabled: true, standard: true },
+  { key: 'isAuto', label: 'Autograph', description: 'True if the card has an on-card or sticker signature', type: 'boolean', enabled: true, standard: true },
+  { key: 'isRelic', label: 'Relic / Patch', description: 'True if the card contains a jersey, bat, patch, or other memorabilia swatch', type: 'boolean', enabled: true, standard: true },
+  { key: 'isShortPrint', label: 'Short Print', description: 'True if this is a short print (SP) or super short print (SSP) variation', type: 'boolean', enabled: true, standard: true }
+];
+
+function standardKeys() { return new Set(DEFAULT_IDENTIFIERS.map(i => i.key)); }
+function getCustomIdentifiers() { return state.identifiers.filter(i => !i.standard); }
+
+// -------- Util --------
+const uid = () => 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+const fmt$ = (n) => {
+  const v = Number(n) || 0;
+  return v.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// -------- Card schema helpers --------
+function migrateCard(c) {
+  if (!c) return c;
+  // Legacy: currentValue -> rawPrice on first load
+  if (c.currentValue != null && c.rawPrice == null) c.rawPrice = c.currentValue;
+  if (c.rawPrice == null) c.rawPrice = 0;
+  if (c.staticPrice == null) c.staticPrice = 0;
+  if (c.useStaticPrice == null) c.useStaticPrice = false;
+  if (c.cardId == null) c.cardId = '';
+  if (c.customFields == null || typeof c.customFields !== 'object') c.customFields = {};
+  // Recompute currentValue based on override (kept for display/filter convenience)
+  c.currentValue = c.useStaticPrice ? (Number(c.staticPrice) || 0) : (Number(c.rawPrice) || 0);
+  return c;
+}
+
+function computeValue(c) {
+  return c.useStaticPrice ? (Number(c.staticPrice) || 0) : (Number(c.rawPrice) || 0);
+}
+
+function nextCardId() {
+  // Find the highest numeric Card ID and add 1; pad to 4 digits
+  const nums = state.cards
+    .map(c => {
+      const m = String(c.cardId || '').match(/^(\d+)$/);
+      return m ? parseInt(m[1]) : null;
+    })
+    .filter(n => n !== null);
+  const next = nums.length ? Math.max(...nums) + 1 : 1;
+  return String(next).padStart(4, '0');
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('#toast-stack').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; }, 2800);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// -------- View switching --------
+function switchView(name) {
+  $$('.view').forEach(v => v.classList.remove('active'));
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  $(`#view-${name}`)?.classList.add('active');
+  document.querySelector(`.tab[data-view="${name}"]`)?.classList.add('active');
+  if (name === 'stats') renderStats();
+  if (name === 'collection') renderCollection();
+  if (name === 'settings') renderSettings();
+  if (name === 'scan') renderCustomFields();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+// -------- Persistence --------
+async function saveCard(card) {
+  const existingIdx = state.cards.findIndex(c => c.id === card.id);
+  const { frontImage, backImage, ...meta } = card;
+  if (existingIdx >= 0) state.cards[existingIdx] = meta;
+  else state.cards.push(meta);
+
+  // Save metadata list
+  await Storage.set('cv:cards', state.cards);
+
+  // Save images separately (can be large)
+  if (frontImage || backImage) {
+    await Storage.set(`cv:img:${card.id}`, { front: frontImage || null, back: backImage || null });
+    state.images[card.id] = { front: frontImage || null, back: backImage || null };
+  }
+}
+
+async function deleteCard(id) {
+  state.cards = state.cards.filter(c => c.id !== id);
+  await Storage.set('cv:cards', state.cards);
+  await Storage.delete(`cv:img:${id}`);
+  delete state.images[id];
+}
+
+async function loadAllCards() {
+  const list = await Storage.get('cv:cards');
+  state.cards = Array.isArray(list) ? list.map(migrateCard) : [];
+}
+
+async function loadIdentifiers() {
+  const saved = await Storage.get('cv:identifiers');
+  if (Array.isArray(saved) && saved.length) {
+    // Merge saved with defaults (saved wins for existing keys, new defaults are added)
+    const savedKeys = new Set(saved.map(i => i.key));
+    const defaultsToAdd = DEFAULT_IDENTIFIERS.filter(i => !savedKeys.has(i.key));
+    state.identifiers = [...saved, ...defaultsToAdd];
+  } else {
+    state.identifiers = DEFAULT_IDENTIFIERS.map(i => ({...i}));
+  }
+}
+
+async function saveIdentifiers() {
+  await Storage.set('cv:identifiers', state.identifiers);
+}
+
+async function loadImagesFor(id) {
+  if (state.images[id]) return state.images[id];
+  const imgs = await Storage.get(`cv:img:${id}`);
+  state.images[id] = imgs || { front: null, back: null };
+  return state.images[id];
+}
+
+// -------- Form helpers --------
+function resetForm() {
+  ['fld-cardid','fld-player','fld-year','fld-brand','fld-set','fld-num','fld-parallel','fld-serial','fld-team','fld-grade','fld-cert','fld-cost','fld-rawprice','fld-staticprice','fld-notes'].forEach(id => $('#'+id).value = '');
+  $('#fld-sport').value = 'Baseball';
+  $('#fld-condition').value = 'Near Mint';
+  $('#fld-graded').value = 'no';
+  $('#fld-grade-co').value = 'PSA';
+  ['fld-rookie','fld-auto','fld-relic','fld-shortprint','fld-use-static'].forEach(id => $('#'+id).checked = false);
+  $('#fld-staticprice').disabled = true;
+  $('#grade-block').style.display = 'none';
+  state.editingId = null;
+  state.capturedFront = null;
+  state.capturedBack = null;
+  renderCaptureSlots();
+  renderCustomFields();
+  $('#ai-status').className = 'ai-status';
+  $('#btn-save').textContent = 'Save to Vault';
+}
+
+function fillFormFromCard(card) {
+  $('#fld-cardid').value = card.cardId || '';
+  $('#fld-player').value = card.player || '';
+  $('#fld-sport').value = card.sport || 'Baseball';
+  $('#fld-year').value = card.year || '';
+  $('#fld-brand').value = card.brand || '';
+  $('#fld-set').value = card.setName || '';
+  $('#fld-num').value = card.cardNumber || '';
+  $('#fld-parallel').value = card.parallel || '';
+  $('#fld-serial').value = card.serialNumber || '';
+  $('#fld-team').value = card.team || '';
+  $('#fld-condition').value = card.condition || 'Near Mint';
+  $('#fld-graded').value = card.isGraded ? 'yes' : 'no';
+  $('#fld-grade-co').value = card.gradingCompany || 'PSA';
+  $('#fld-grade').value = card.grade || '';
+  $('#fld-cert').value = card.certNumber || '';
+  $('#fld-cost').value = card.purchasePrice || '';
+  $('#fld-rawprice').value = card.rawPrice || '';
+  $('#fld-staticprice').value = card.staticPrice || '';
+  $('#fld-use-static').checked = !!card.useStaticPrice;
+  $('#fld-staticprice').disabled = !card.useStaticPrice;
+  $('#fld-notes').value = card.notes || '';
+  $('#fld-rookie').checked = !!card.isRookie;
+  $('#fld-auto').checked = !!card.isAuto;
+  $('#fld-relic').checked = !!card.isRelic;
+  $('#fld-shortprint').checked = !!card.isShortPrint;
+  $('#grade-block').style.display = card.isGraded ? '' : 'none';
+  renderCustomFields(card.customFields || {});
+}
+
+function readForm() {
+  const customFields = {};
+  getCustomIdentifiers().forEach(id => {
+    const el = document.getElementById(`cfld-${id.key}`);
+    if (!el) return;
+    if (id.type === 'boolean') customFields[id.key] = el.checked;
+    else if (id.type === 'number') customFields[id.key] = parseFloat(el.value) || null;
+    else customFields[id.key] = el.value.trim();
+  });
+
+  const useStatic = $('#fld-use-static').checked;
+  const rawPrice = parseFloat($('#fld-rawprice').value) || 0;
+  const staticPrice = parseFloat($('#fld-staticprice').value) || 0;
+
+  return {
+    cardId: $('#fld-cardid').value.trim(),
+    player: $('#fld-player').value.trim(),
+    sport: $('#fld-sport').value,
+    year: parseInt($('#fld-year').value) || null,
+    brand: $('#fld-brand').value.trim(),
+    setName: $('#fld-set').value.trim(),
+    cardNumber: $('#fld-num').value.trim(),
+    parallel: $('#fld-parallel').value.trim(),
+    serialNumber: $('#fld-serial').value.trim(),
+    team: $('#fld-team').value.trim(),
+    condition: $('#fld-condition').value,
+    isGraded: $('#fld-graded').value === 'yes',
+    gradingCompany: $('#fld-grade-co').value,
+    grade: $('#fld-grade').value.trim(),
+    certNumber: $('#fld-cert').value.trim(),
+    purchasePrice: parseFloat($('#fld-cost').value) || 0,
+    rawPrice,
+    staticPrice,
+    useStaticPrice: useStatic,
+    currentValue: useStatic ? staticPrice : rawPrice,
+    notes: $('#fld-notes').value.trim(),
+    isRookie: $('#fld-rookie').checked,
+    isAuto: $('#fld-auto').checked,
+    isRelic: $('#fld-relic').checked,
+    isShortPrint: $('#fld-shortprint').checked,
+    customFields
+  };
+}
+
+// Toggle static price field on/off
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'fld-use-static') {
+    $('#fld-staticprice').disabled = !e.target.checked;
+    if (e.target.checked) $('#fld-staticprice').focus();
+  }
+});
+
+$('#fld-graded').addEventListener('change', e => {
+  $('#grade-block').style.display = e.target.value === 'yes' ? '' : 'none';
+});
+
+// -------- Custom fields renderer --------
+function renderCustomFields(values = {}) {
+  const custom = getCustomIdentifiers();
+  const section = $('#custom-fields-section');
+  const container = $('#custom-fields-container');
+  if (!custom.length) { section.style.display = 'none'; container.innerHTML = ''; return; }
+  section.style.display = '';
+  container.innerHTML = custom.map(id => {
+    const val = values[id.key] ?? '';
+    if (id.type === 'boolean') {
+      return `<div class="custom-field-row">
+        <label class="checkbox-wrap" style="margin-top:4px">
+          <input type="checkbox" id="cfld-${esc(id.key)}" ${val ? 'checked' : ''} />
+          <span><strong>${esc(id.label)}</strong></span>
+        </label>
+        ${id.description ? `<div class="hint">${esc(id.description)}</div>` : ''}
+      </div>`;
+    }
+    const inputType = id.type === 'number' ? 'number' : 'text';
+    const step = id.type === 'number' ? 'step="any"' : '';
+    return `<div class="custom-field-row">
+      <label>${esc(id.label)}</label>
+      <input type="${inputType}" ${step} id="cfld-${esc(id.key)}" value="${esc(val)}" placeholder="${esc(id.description || '')}" />
+    </div>`;
+  }).join('');
+}
+
+// -------- Camera --------
+async function startCamera() {
+  try {
+    if (state.stream) stopCamera();
+    const constraints = { video: { facingMode: state.currentFacing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+    state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    $('#camera-video').srcObject = state.stream;
+    $('#btn-cam-start').disabled = true;
+    $('#btn-cam-flip').disabled = false;
+    $('#btn-cap-front').disabled = false;
+    $('#btn-cap-back').disabled = false;
+    $('#btn-cam-stop').disabled = false;
+    toast('Camera started', 'success');
+  } catch (err) {
+    toast('Camera access denied or unavailable', 'error');
+    console.error(err);
+  }
+}
+
+function stopCamera() {
+  if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+  $('#camera-video').srcObject = null;
+  $('#btn-cam-start').disabled = false;
+  $('#btn-cam-flip').disabled = true;
+  $('#btn-cap-front').disabled = true;
+  $('#btn-cap-back').disabled = true;
+  $('#btn-cam-stop').disabled = true;
+}
+
+async function flipCamera() {
+  state.currentFacing = state.currentFacing === 'environment' ? 'user' : 'environment';
+  await startCamera();
+}
+
+function captureFrame() {
+  const video = $('#camera-video');
+  if (!video.videoWidth) return null;
+  const canvas = $('#camera-hidden');
+  // Max dimension 900px to keep base64 reasonable
+  const maxDim = 900;
+  const ratio = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
+  canvas.width = Math.floor(video.videoWidth * ratio);
+  canvas.height = Math.floor(video.videoHeight * ratio);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
+$('#btn-cam-start').addEventListener('click', startCamera);
+$('#btn-cam-flip').addEventListener('click', flipCamera);
+$('#btn-cam-stop').addEventListener('click', stopCamera);
+$('#btn-cap-front').addEventListener('click', () => {
+  const data = captureFrame();
+  if (data) { state.capturedFront = data; renderCaptureSlots(); toast('Front captured', 'success'); }
+});
+$('#btn-cap-back').addEventListener('click', () => {
+  const data = captureFrame();
+  if (data) { state.capturedBack = data; renderCaptureSlots(); toast('Back captured', 'success'); }
+});
+
+$('#btn-clear-img').addEventListener('click', () => {
+  state.capturedFront = null; state.capturedBack = null;
+  renderCaptureSlots();
+  $('#ai-status').className = 'ai-status';
+});
+
+// File upload fallback
+$('#file-upload').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const data = await fileToCompressedDataURL(file);
+    if (!state.capturedFront) state.capturedFront = data;
+    else if (!state.capturedBack) state.capturedBack = data;
+    else { state.capturedFront = data; state.capturedBack = null; }
+  }
+  renderCaptureSlots();
+  e.target.value = '';
+});
+
+function fileToCompressedDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const maxDim = 900;
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        const c = document.createElement('canvas');
+        c.width = Math.floor(img.width * ratio);
+        c.height = Math.floor(img.height * ratio);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderCaptureSlots() {
+  const renderSlot = (el, data, label) => {
+    el.innerHTML = '';
+    const lbl = document.createElement('div');
+    lbl.className = 'capture-slot-label';
+    lbl.textContent = label;
+    el.appendChild(lbl);
+    if (data) {
+      const img = document.createElement('img'); img.src = data;
+      el.appendChild(img);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'capture-slot-empty';
+      empty.textContent = 'No image';
+      el.appendChild(empty);
+    }
+  };
+  renderSlot($('#slot-front'), state.capturedFront, 'Front');
+  renderSlot($('#slot-back'), state.capturedBack, 'Back');
+  $('#btn-ai').disabled = !state.capturedFront;
+}
+
+// -------- Dynamic AI prompt builder --------
+function buildAIPrompt() {
+  const enabled = state.identifiers.filter(i => i.enabled);
+  const standardLines = [];
+  const customLines = [];
+
+  enabled.forEach(id => {
+    const typeHint = id.type === 'boolean' ? 'boolean' : (id.type === 'number' ? 'number' : 'string');
+    let line;
+    if (id.key === 'sport') {
+      line = `  "sport": one of ["Baseball","Basketball","Football","Hockey","Soccer","Golf","Racing","Boxing/MMA","Multi-Sport","Other"]`;
+    } else {
+      line = `  "${id.key}": ${typeHint}  // ${id.description}`;
+    }
+    if (id.standard) standardLines.push(line);
+    else customLines.push(`    "${id.key}": ${typeHint}  // ${id.description}`);
+  });
+
+  const customBlock = customLines.length
+    ? `,\n  "customFields": {\n${customLines.join(',\n')}\n  }`
+    : '';
+
+  return `Extract the card details from the image(s). Respond with ONLY a JSON object (no markdown, no code fences, no commentary) using these fields. Use null or empty string for anything you cannot determine — do NOT guess:
+{
+${standardLines.join(',\n')}${customBlock}
+}`;
+}
+
+// -------- AI identification --------
+$('#btn-ai').addEventListener('click', async () => {
+  if (!state.capturedFront) { toast('Capture the front of the card first', 'error'); return; }
+  const statusEl = $('#ai-status');
+  statusEl.className = 'ai-status show';
+  statusEl.textContent = '✨ Analyzing card with Claude...';
+  $('#btn-ai').disabled = true;
+
+  try {
+    // Check proxy is configured
+    if (!ApiConfig.proxyUrl) {
+      throw new Error('AI proxy not configured. Open Settings → AI Proxy and add your Cloudflare Worker URL.');
+    }
+
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.capturedFront.split(',')[1] } }
+    ];
+    if (state.capturedBack) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.capturedBack.split(',')[1] } });
+      content.push({ type: 'text', text: 'The first image is the FRONT and the second is the BACK of a sports trading card.' });
+    }
+    content.push({ type: 'text', text: buildAIPrompt() });
+
+    const res = await fetch(ApiConfig.proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content }]
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Proxy error ${res.status}${errText ? ': ' + errText.slice(0, 120) : ''}`);
+    }
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    const jsonStr = firstBrace >= 0 ? clean.slice(firstBrace, lastBrace + 1) : clean;
+    const parsed = JSON.parse(jsonStr);
+
+    // Apply standard fields — only enabled ones, and only if non-empty
+    const enabledKeys = new Set(state.identifiers.filter(i => i.enabled && i.standard).map(i => i.key));
+    const fieldMap = {
+      player: '#fld-player', sport: '#fld-sport', year: '#fld-year', brand: '#fld-brand',
+      setName: '#fld-set', cardNumber: '#fld-num', parallel: '#fld-parallel',
+      serialNumber: '#fld-serial', team: '#fld-team'
+    };
+    Object.entries(fieldMap).forEach(([key, sel]) => {
+      if (enabledKeys.has(key) && parsed[key]) $(sel).value = parsed[key];
+    });
+    const boolMap = { isRookie: '#fld-rookie', isAuto: '#fld-auto', isRelic: '#fld-relic', isShortPrint: '#fld-shortprint' };
+    Object.entries(boolMap).forEach(([key, sel]) => {
+      if (enabledKeys.has(key) && parsed[key]) $(sel).checked = true;
+    });
+
+    // Apply custom fields
+    if (parsed.customFields && typeof parsed.customFields === 'object') {
+      getCustomIdentifiers().forEach(id => {
+        if (!id.enabled) return;
+        const val = parsed.customFields[id.key];
+        if (val == null || val === '') return;
+        const el = document.getElementById(`cfld-${id.key}`);
+        if (!el) return;
+        if (id.type === 'boolean') el.checked = !!val;
+        else el.value = val;
+      });
+    }
+
+    const summary = [parsed.player, parsed.year, parsed.brand].filter(Boolean).join(' ');
+    statusEl.className = 'ai-status show success';
+    statusEl.textContent = `✅ Identified: ${summary || 'Card details extracted'}`;
+  } catch (err) {
+    console.error(err);
+    statusEl.className = 'ai-status show error';
+    statusEl.textContent = `⚠️ AI identification failed: ${err.message}. Fill in the details manually.`;
+  } finally {
+    $('#btn-ai').disabled = !state.capturedFront;
+  }
+});
+
+// -------- Save --------
+$('#btn-save').addEventListener('click', async () => {
+  const f = readForm();
+  if (!f.player) { toast('Player name is required', 'error'); $('#fld-player').focus(); return; }
+  if (!f.year) { toast('Year is required', 'error'); $('#fld-year').focus(); return; }
+
+  const id = state.editingId || uid();
+  const existing = state.editingId ? state.cards.find(c => c.id === id) : null;
+
+  // Auto-assign Card ID if blank
+  if (!f.cardId) f.cardId = existing?.cardId || nextCardId();
+
+  const card = migrateCard({
+    id,
+    dateAdded: existing?.dateAdded || new Date().toISOString(),
+    dateUpdated: new Date().toISOString(),
+    ...f,
+    frontImage: state.capturedFront,
+    backImage: state.capturedBack
+  });
+
+  await saveCard(card);
+  toast(state.editingId ? `Card #${card.cardId} updated` : `Card #${card.cardId} saved`, 'success');
+  resetForm();
+  stopCamera();
+  populateFilterOptions();
+  switchView('collection');
+});
+
+$('#btn-reset-form').addEventListener('click', () => { resetForm(); toast('Form reset'); });
+
+// -------- Collection rendering --------
+function applyFilters(cards) {
+  const search = $('#f-search').value.trim().toLowerCase();
+  const sport = $('#f-sport').value;
+  const year = $('#f-year').value;
+  const brand = $('#f-brand').value;
+  const attr = $('#f-attr').value;
+  const sort = $('#f-sort').value;
+
+  let out = cards.filter(c => {
+    if (search) {
+      const hay = [c.cardId, c.player, c.brand, c.setName, c.parallel, c.team, c.notes, c.cardNumber, c.grade].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    if (sport && c.sport !== sport) return false;
+    if (year && String(c.year) !== year) return false;
+    if (brand && c.brand !== brand) return false;
+    if (attr === 'rookie' && !c.isRookie) return false;
+    if (attr === 'auto' && !c.isAuto) return false;
+    if (attr === 'relic' && !c.isRelic) return false;
+    if (attr === 'graded' && !c.isGraded) return false;
+    if (attr === 'serial' && !c.serialNumber) return false;
+    return true;
+  });
+
+  const sorters = {
+    'added-desc': (a,b) => b.dateAdded.localeCompare(a.dateAdded),
+    'added-asc':  (a,b) => a.dateAdded.localeCompare(b.dateAdded),
+    'value-desc': (a,b) => computeValue(b) - computeValue(a),
+    'value-asc':  (a,b) => computeValue(a) - computeValue(b),
+    'year-desc':  (a,b) => (b.year||0) - (a.year||0),
+    'year-asc':   (a,b) => (a.year||0) - (b.year||0),
+    'player-asc': (a,b) => (a.player||'').localeCompare(b.player||'')
+  };
+  out.sort(sorters[sort] || sorters['added-desc']);
+  return out;
+}
+
+async function renderCollection() {
+  const filtered = applyFilters(state.cards);
+  const grid = $('#card-grid');
+  const empty = $('#empty');
+
+  $('#count-total').textContent = state.cards.length;
+  $('#count-showing').textContent = filtered.length;
+  const totalValue = filtered.reduce((s,c) => s + computeValue(c), 0);
+  $('#count-value').textContent = fmt$(totalValue);
+
+  if (state.cards.length === 0) { grid.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = filtered.map(c => {
+    const badges = [];
+    if (c.isRookie) badges.push('<span class="badge rc">RC</span>');
+    if (c.isAuto) badges.push('<span class="badge auto">AUTO</span>');
+    if (c.isRelic) badges.push('<span class="badge relic">RELIC</span>');
+    if (c.isGraded) badges.push(`<span class="badge graded">${esc(c.gradingCompany||'GRADED')} ${esc(c.grade||'')}</span>`);
+    if (c.serialNumber) badges.push(`<span class="badge serial">/${esc(c.serialNumber.split('/')[1] || c.serialNumber)}</span>`);
+
+    const val = computeValue(c);
+    const pnl = val - (c.purchasePrice||0);
+    const pnlStr = c.purchasePrice > 0 ? `<span class="card-price-sub" style="color: ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}${fmt$(pnl)}</span>` : '';
+    const staticMark = c.useStaticPrice ? ' <span class="card-price-sub" title="Static price override">●</span>' : '';
+
+    return `
+      <div class="card-tile" data-id="${c.id}">
+        <div class="card-tile-img" data-imgholder="${c.id}">
+          <div class="card-tile-img-empty">Loading…</div>
+        </div>
+        <div class="card-badges">${badges.join('')}</div>
+        ${c.cardId ? `<div class="card-vault-id">#${esc(c.cardId)}</div>` : ''}
+        <div class="card-tile-body">
+          <div class="card-player">${esc(c.player || 'Unknown')}</div>
+          <div class="card-meta">
+            <span>${esc(c.year || '—')}</span>
+            <span class="dot"></span>
+            <span>${esc(c.brand || '—')}</span>
+            ${c.cardNumber ? `<span class="dot"></span><span>#${esc(c.cardNumber)}</span>` : ''}
+          </div>
+          <div class="card-price">${fmt$(val)}${staticMark} ${pnlStr}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Lazy-load images
+  grid.querySelectorAll('[data-imgholder]').forEach(async (holder) => {
+    const id = holder.dataset.imgholder;
+    const imgs = await loadImagesFor(id);
+    if (imgs.front) {
+      holder.innerHTML = `<img src="${imgs.front}" alt="Card front" loading="lazy" />`;
+    } else {
+      holder.innerHTML = '<div class="card-tile-img-empty">No Photo</div>';
+    }
+  });
+
+  grid.querySelectorAll('.card-tile').forEach(tile => {
+    tile.addEventListener('click', () => openDetail(tile.dataset.id));
+  });
+}
+
+['f-search','f-sport','f-year','f-brand','f-attr','f-sort'].forEach(id => {
+  $('#'+id).addEventListener('input', renderCollection);
+});
+$('#f-reset').addEventListener('click', () => {
+  ['f-search','f-sport','f-year','f-brand','f-attr'].forEach(id => $('#'+id).value = '');
+  $('#f-sort').value = 'added-desc';
+  renderCollection();
+});
+
+function populateFilterOptions() {
+  const unique = (key) => [...new Set(state.cards.map(c => c[key]).filter(Boolean))].sort((a,b) => String(b).localeCompare(String(a)));
+  const fill = (selId, arr) => {
+    const sel = $('#'+selId);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    sel.value = arr.includes(current) ? current : '';
+  };
+  fill('f-sport', unique('sport'));
+  fill('f-year', unique('year'));
+  fill('f-brand', unique('brand'));
+}
+
+// -------- Detail modal --------
+async function openDetail(id) {
+  const c = state.cards.find(x => x.id === id);
+  if (!c) return;
+  const imgs = await loadImagesFor(id);
+  $('#detail-title').textContent = `${c.player} — ${c.year || ''} ${c.brand || ''}`.trim();
+
+  const fields = [
+    ['Card ID', c.cardId],
+    ['Player', c.player],
+    ['Sport', c.sport],
+    ['Year', c.year],
+    ['Team', c.team],
+    ['Brand', c.brand],
+    ['Set', c.setName],
+    ['Card #', c.cardNumber],
+    ['Parallel', c.parallel],
+    ['Serial', c.serialNumber],
+    ['Condition', c.condition],
+    ['Graded', c.isGraded ? `${c.gradingCompany||''} ${c.grade||''}`.trim() : 'Raw'],
+    ['Cert #', c.certNumber]
+  ].filter(([,v]) => v != null && v !== '');
+
+  // Custom fields
+  const customDefs = getCustomIdentifiers();
+  const customFields = customDefs.map(id => {
+    const v = c.customFields?.[id.key];
+    if (v == null || v === '' || v === false) return null;
+    const displayVal = id.type === 'boolean' ? 'Yes' : v;
+    return [id.label, displayVal];
+  }).filter(Boolean);
+
+  const attrs = [];
+  if (c.isRookie) attrs.push('Rookie');
+  if (c.isAuto) attrs.push('Autograph');
+  if (c.isRelic) attrs.push('Relic/Patch');
+  if (c.isShortPrint) attrs.push('Short Print');
+
+  const val = computeValue(c);
+  const pnl = val - (c.purchasePrice||0);
+  const pnlPct = c.purchasePrice > 0 ? ((pnl / c.purchasePrice) * 100).toFixed(1) : '0.0';
+
+  $('#detail-body').innerHTML = `
+    <div class="detail-layout">
+      <div>
+        <div class="detail-images">
+          <div class="detail-img">${imgs.front ? `<img src="${imgs.front}"/>` : '<div class="card-tile-img-empty">No Front</div>'}</div>
+          <div class="detail-img">${imgs.back ? `<img src="${imgs.back}"/>` : '<div class="card-tile-img-empty">No Back</div>'}</div>
+        </div>
+        <div class="price-block">
+          <div class="price-item">
+            <div class="l">Cost</div>
+            <div class="v">${fmt$(c.purchasePrice||0)}</div>
+          </div>
+          <div class="price-item">
+            <div class="l">Raw Market</div>
+            <div class="v" style="${c.useStaticPrice ? 'opacity:0.55; text-decoration: line-through; font-size:14px' : ''}">${fmt$(c.rawPrice||0)}</div>
+          </div>
+          ${c.useStaticPrice ? `<div class="price-item">
+            <div class="l">Static Price</div>
+            <div class="v">${fmt$(c.staticPrice||0)}</div>
+          </div>` : ''}
+          <div class="price-item">
+            <div class="l">P/L</div>
+            <div class="v" style="color: ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}${fmt$(pnl)} <span style="font-size:12px; opacity:0.7">(${pnlPct}%)</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="detail-fields">
+          ${fields.map(([k,v]) => `<div class="detail-field"><div class="l">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')}
+          ${customFields.map(([k,v]) => `<div class="detail-field"><div class="l">${esc(k)} <span style="color:var(--gold); font-size:9px">★</span></div><div class="v">${esc(v)}</div></div>`).join('')}
+          ${attrs.length ? `<div class="detail-field span-2"><div class="l">Attributes</div><div class="v">${attrs.map(a=>`<span class="badge" style="background:var(--bg-elev); color:var(--gold); margin-right:4px; border:1px solid var(--border)">${a}</span>`).join('')}</div></div>` : ''}
+          ${c.notes ? `<div class="detail-field span-2"><div class="l">Notes</div><div class="v" style="color: var(--text-dim); line-height:1.5">${esc(c.notes)}</div></div>` : ''}
+          <div class="detail-field span-2" style="color: var(--text-faint); font-size:11px; font-family: var(--font-mono);">
+            Added ${new Date(c.dateAdded).toLocaleString()}
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:18px">
+          <button class="btn btn-secondary" id="detail-edit">Edit</button>
+          <button class="btn btn-danger" id="detail-delete">Delete</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  $('#detail-edit').addEventListener('click', async () => {
+    state.editingId = c.id;
+    fillFormFromCard(c);
+    state.capturedFront = imgs.front;
+    state.capturedBack = imgs.back;
+    renderCaptureSlots();
+    $('#btn-save').textContent = 'Update Card';
+    closeDetail();
+    switchView('scan');
+  });
+
+  $('#detail-delete').addEventListener('click', async () => {
+    if (!confirm(`Delete ${c.player} permanently? This cannot be undone.`)) return;
+    await deleteCard(c.id);
+    closeDetail();
+    populateFilterOptions();
+    renderCollection();
+    toast('Card deleted', 'success');
+  });
+
+  $('#detail-modal').classList.add('show');
+}
+
+function closeDetail() { $('#detail-modal').classList.remove('show'); }
+$('#detail-close').addEventListener('click', closeDetail);
+$('#detail-modal').addEventListener('click', e => { if (e.target === $('#detail-modal')) closeDetail(); });
+
+// -------- Stats --------
+function renderStats() {
+  const cards = state.cards;
+  const count = cards.length;
+  const cost = cards.reduce((s,c) => s + (c.purchasePrice||0), 0);
+  const value = cards.reduce((s,c) => s + computeValue(c), 0);
+  const pnl = value - cost;
+  const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+  const uniquePlayers = new Set(cards.map(c => c.player)).size;
+
+  $('#s-count').textContent = count;
+  $('#s-count-sub').textContent = `${uniquePlayers} unique players`;
+  $('#s-cost').textContent = fmt$(cost);
+  $('#s-cost-sub').textContent = `${cards.filter(c => c.purchasePrice > 0).length} with cost recorded`;
+  $('#s-value').textContent = fmt$(value);
+  const staticCount = cards.filter(c => c.useStaticPrice).length;
+  $('#s-value-sub').textContent = `${cards.filter(c => computeValue(c) > 0).length} priced${staticCount ? ` · ${staticCount} static` : ''}`;
+  $('#s-pnl').textContent = (pnl >= 0 ? '+' : '') + fmt$(pnl);
+  $('#s-pnl').style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  $('#s-pnl-sub').textContent = `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%`;
+  $('#s-pnl-sub').className = 'stat-sub ' + (pnl >= 0 ? 'green' : 'red');
+
+  // Helper: group
+  const groupBy = (arr, keyFn) => arr.reduce((acc, x) => {
+    const k = keyFn(x) || 'Unknown';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+
+  const goldPalette = ['#d4a855','#f0c274','#b38a3d','#8b6a2f','#5c4620','#e8c88a','#c99a4c','#a87f3c','#6d5327','#ead094'];
+  const palette = ['#d4a855','#60a5fa','#34d399','#a78bfa','#f87171','#fb923c','#22d3ee','#facc15','#f472b6','#94a3b8'];
+
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#e8eef5', font: { family: 'Figtree', size: 11 } } },
+      tooltip: { backgroundColor: '#131825', borderColor: '#2a3552', borderWidth: 1, titleColor: '#e8eef5', bodyColor: '#e8eef5' }
+    },
+    scales: {
+      x: { ticks: { color: '#8892a6' }, grid: { color: '#1f2940' } },
+      y: { ticks: { color: '#8892a6' }, grid: { color: '#1f2940' }, beginAtZero: true }
+    }
+  };
+
+  Object.values(state.charts).forEach(c => c?.destroy?.());
+  state.charts = {};
+
+  // Sport breakdown (doughnut)
+  const bySport = groupBy(cards, c => c.sport);
+  state.charts.sport = new Chart($('#chart-sport'), {
+    type: 'doughnut',
+    data: { labels: Object.keys(bySport), datasets: [{ data: Object.values(bySport), backgroundColor: palette, borderColor: '#131825', borderWidth: 2 }] },
+    options: { ...chartDefaults, scales: {}, cutout: '60%' }
+  });
+
+  // Brand breakdown (bar)
+  const byBrand = Object.entries(groupBy(cards, c => c.brand || 'Unknown')).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  state.charts.brand = new Chart($('#chart-brand'), {
+    type: 'bar',
+    data: { labels: byBrand.map(e => e[0]), datasets: [{ label: 'Cards', data: byBrand.map(e => e[1]), backgroundColor: goldPalette[0], borderRadius: 4 }] },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } }
+  });
+
+  // Year breakdown (bar, sorted asc)
+  const byYear = Object.entries(groupBy(cards, c => c.year)).sort((a,b) => Number(a[0]) - Number(b[0]));
+  state.charts.year = new Chart($('#chart-year'), {
+    type: 'bar',
+    data: { labels: byYear.map(e => e[0]), datasets: [{ label: 'Cards', data: byYear.map(e => e[1]), backgroundColor: palette[1], borderRadius: 4 }] },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } }
+  });
+
+  // Top players by value
+  const playerValue = cards.reduce((acc, c) => {
+    acc[c.player] = (acc[c.player] || 0) + computeValue(c);
+    return acc;
+  }, {});
+  const topPlayers = Object.entries(playerValue).sort((a,b) => b[1]-a[1]).slice(0, 10).filter(e => e[1] > 0);
+  $('#top-players').innerHTML = topPlayers.length
+    ? topPlayers.map(([n,v]) => `<li><span class="name">${esc(n)}</span><span class="val">${fmt$(v)}</span></li>`).join('')
+    : '<li style="color: var(--text-faint); text-align: center; padding: 20px; justify-content: center;">No value data yet</li>';
+
+  // Attributes
+  const attrCounts = {
+    'Rookie': cards.filter(c => c.isRookie).length,
+    'Auto': cards.filter(c => c.isAuto).length,
+    'Relic': cards.filter(c => c.isRelic).length,
+    'Graded': cards.filter(c => c.isGraded).length,
+    'Serial #\'d': cards.filter(c => c.serialNumber).length,
+    'Short Print': cards.filter(c => c.isShortPrint).length
+  };
+  state.charts.attr = new Chart($('#chart-attr'), {
+    type: 'bar',
+    data: { labels: Object.keys(attrCounts), datasets: [{ label: 'Count', data: Object.values(attrCounts), backgroundColor: palette[3], borderRadius: 4 }] },
+    options: { ...chartDefaults, indexAxis: 'y', plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { x: chartDefaults.scales.x, y: { ticks: { color: '#8892a6' }, grid: { color: '#1f2940' } } } }
+  });
+
+  // Value distribution (buckets)
+  const buckets = { 'Under $10': 0, '$10-50': 0, '$50-100': 0, '$100-500': 0, '$500-1K': 0, 'Over $1K': 0 };
+  cards.forEach(c => {
+    const v = computeValue(c);
+    if (v < 10) buckets['Under $10']++;
+    else if (v < 50) buckets['$10-50']++;
+    else if (v < 100) buckets['$50-100']++;
+    else if (v < 500) buckets['$100-500']++;
+    else if (v < 1000) buckets['$500-1K']++;
+    else buckets['Over $1K']++;
+  });
+  state.charts.valDist = new Chart($('#chart-value-dist'), {
+    type: 'bar',
+    data: { labels: Object.keys(buckets), datasets: [{ label: 'Cards', data: Object.values(buckets), backgroundColor: palette[2], borderRadius: 4 }] },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } }
+  });
+}
+
+// -------- Export / Import --------
+function download(filename, content, type = 'text/plain') {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+$('#btn-export-csv').addEventListener('click', () => {
+  const headers = ['id','cardId','dateAdded','player','sport','year','team','brand','setName','cardNumber','parallel','serialNumber','isRookie','isAuto','isRelic','isShortPrint','condition','isGraded','gradingCompany','grade','certNumber','purchasePrice','rawPrice','staticPrice','useStaticPrice','currentValue','notes'];
+  // Add custom field columns with "custom_" prefix
+  const customDefs = getCustomIdentifiers();
+  customDefs.forEach(id => headers.push(`custom_${id.key}`));
+  const rows = [headers.join(',')];
+  state.cards.forEach(c => {
+    const row = headers.map(h => {
+      if (h === 'currentValue') return csvEscape(computeValue(c));
+      if (h.startsWith('custom_')) {
+        const key = h.substring(7);
+        return csvEscape(c.customFields?.[key] ?? '');
+      }
+      return csvEscape(c[h]);
+    });
+    rows.push(row.join(','));
+  });
+  download(`card-vault-${new Date().toISOString().slice(0,10)}.csv`, rows.join('\n'), 'text/csv');
+  toast('CSV exported', 'success');
+});
+
+$('#btn-export-json').addEventListener('click', async () => {
+  // Full backup with images + identifier config
+  const full = [];
+  for (const c of state.cards) {
+    const imgs = await loadImagesFor(c.id);
+    full.push({ ...c, frontImage: imgs.front, backImage: imgs.back });
+  }
+  download(`card-vault-backup-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), identifiers: state.identifiers, cards: full }, null, 2), 'application/json');
+  toast('JSON backup exported', 'success');
+});
+
+function parseCSV(text) {
+  const rows = [];
+  let cur = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else field += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { cur.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (field !== '' || cur.length) { cur.push(field); rows.push(cur); cur = []; field = ''; }
+        if (ch === '\r' && next === '\n') i++;
+      }
+      else field += ch;
+    }
+  }
+  if (field !== '' || cur.length) { cur.push(field); rows.push(cur); }
+  return rows;
+}
+
+$('#import-csv').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) { toast('CSV is empty', 'error'); return; }
+  const headers = rows[0].map(h => h.trim());
+  let imported = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = row[idx] ?? '');
+    const customFields = {};
+    headers.filter(h => h.startsWith('custom_')).forEach(h => {
+      const key = h.substring(7);
+      const v = obj[h];
+      if (v !== '') customFields[key] = v === 'true' ? true : (v === 'false' ? false : v);
+    });
+    const card = migrateCard({
+      id: obj.id || uid(),
+      cardId: obj.cardId || '',
+      dateAdded: obj.dateAdded || new Date().toISOString(),
+      dateUpdated: new Date().toISOString(),
+      player: obj.player || '',
+      sport: obj.sport || 'Other',
+      year: parseInt(obj.year) || null,
+      team: obj.team || '',
+      brand: obj.brand || '',
+      setName: obj.setName || '',
+      cardNumber: obj.cardNumber || '',
+      parallel: obj.parallel || '',
+      serialNumber: obj.serialNumber || '',
+      isRookie: obj.isRookie === 'true' || obj.isRookie === true,
+      isAuto: obj.isAuto === 'true' || obj.isAuto === true,
+      isRelic: obj.isRelic === 'true' || obj.isRelic === true,
+      isShortPrint: obj.isShortPrint === 'true' || obj.isShortPrint === true,
+      condition: obj.condition || 'Near Mint',
+      isGraded: obj.isGraded === 'true' || obj.isGraded === true,
+      gradingCompany: obj.gradingCompany || 'PSA',
+      grade: obj.grade || '',
+      certNumber: obj.certNumber || '',
+      purchasePrice: parseFloat(obj.purchasePrice) || 0,
+      rawPrice: parseFloat(obj.rawPrice) || parseFloat(obj.currentValue) || 0,
+      staticPrice: parseFloat(obj.staticPrice) || 0,
+      useStaticPrice: obj.useStaticPrice === 'true' || obj.useStaticPrice === true,
+      notes: obj.notes || '',
+      customFields
+    });
+    if (!card.player) continue;
+    await saveCard(card);
+    imported++;
+  }
+  populateFilterOptions();
+  renderCollection();
+  toast(`Imported ${imported} cards`, 'success');
+  e.target.value = '';
+});
+
+$('#import-json').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const list = Array.isArray(data) ? data : data.cards;
+    if (!Array.isArray(list)) throw new Error('Invalid format');
+    // Restore identifier config if present
+    if (data.identifiers && Array.isArray(data.identifiers)) {
+      if (confirm('Backup includes identifier config. Replace current identifiers with backup?')) {
+        state.identifiers = data.identifiers;
+        await saveIdentifiers();
+      }
+    }
+    let imported = 0;
+    for (const c of list) {
+      const card = migrateCard({ ...c, id: c.id || uid(), dateUpdated: new Date().toISOString() });
+      await saveCard(card);
+      imported++;
+    }
+    populateFilterOptions();
+    renderCollection();
+    toast(`Imported ${imported} cards (with images)`, 'success');
+  } catch (err) {
+    toast('Invalid JSON file', 'error');
+  }
+  e.target.value = '';
+});
+
+$('#btn-wipe').addEventListener('click', async () => {
+  if (!confirm('Delete ALL cards and images? This cannot be undone.')) return;
+  if (!confirm('Really? All your collection data will be permanently erased.')) return;
+  for (const c of state.cards) await Storage.delete(`cv:img:${c.id}`);
+  await Storage.delete('cv:cards');
+  state.cards = []; state.images = {};
+  populateFilterOptions();
+  renderCollection();
+  toast('All data wiped', 'success');
+});
+
+// -------- Settings / Identifiers --------
+const WORKER_CODE = `// Card Vault — Anthropic API Proxy
+// Deploy this to a Cloudflare Worker. Set ANTHROPIC_API_KEY as a secret.
+// Optionally set ALLOWED_ORIGIN to your GitHub Pages URL to restrict access.
+
+export default {
+  async fetch(request, env) {
+    const origin = request.headers.get('Origin') || '';
+    const allowed = env.ALLOWED_ORIGIN || '*';
+    const corsOrigin = (allowed === '*' || origin === allowed) ? (origin || '*') : allowed;
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': corsOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    // Simple GET health check for "Test Connection" button
+    if (request.method === 'GET') {
+      return new Response(JSON.stringify({ ok: true, service: 'card-vault-proxy' }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405, headers: corsHeaders });
+    }
+
+    // Origin check (if ALLOWED_ORIGIN is set and not *)
+    if (env.ALLOWED_ORIGIN && env.ALLOWED_ORIGIN !== '*' && origin !== env.ALLOWED_ORIGIN) {
+      return new Response('Forbidden origin', { status: 403, headers: corsHeaders });
+    }
+
+    if (!env.ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY secret not set' }), {
+        status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Forward to Anthropic API
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await apiRes.text();
+    return new Response(data, {
+      status: apiRes.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+};
+`;
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function updateProxyStatusPill() {
+  const pill = $('#proxy-status-pill');
+  if (!pill) return;
+  if (ApiConfig.proxyUrl) {
+    pill.textContent = '✓ Configured';
+    pill.style.color = 'var(--green)';
+    pill.style.borderColor = 'rgba(52, 211, 153, 0.3)';
+    pill.style.background = 'rgba(52, 211, 153, 0.08)';
+  } else {
+    pill.textContent = 'Not configured';
+    pill.style.color = 'var(--text-dim)';
+    pill.style.borderColor = 'var(--border)';
+    pill.style.background = 'var(--bg-elev)';
+  }
+}
+
+function renderSettings() {
+  // Populate proxy URL
+  $('#proxy-url').value = ApiConfig.proxyUrl;
+  updateProxyStatusPill();
+
+  // Storage usage
+  const bytes = Storage.usage();
+  const quotaEst = 5 * 1024 * 1024; // assume 5MB typical localStorage cap
+  const pct = ((bytes / quotaEst) * 100).toFixed(1);
+  $('#storage-usage').textContent = `${formatBytes(bytes)} used · ${state.cards.length} cards · ~${pct}% of typical 5 MB browser limit`;
+
+  const list = $('#ident-list');
+  list.innerHTML = state.identifiers.map((id, idx) => {
+    const typePill = `<span class="ident-type-pill">${id.type}</span>`;
+    const actions = id.standard
+      ? `<button class="icon-btn" data-act="edit-desc" data-idx="${idx}" title="Edit description">✎</button>`
+      : `<button class="icon-btn" data-act="edit" data-idx="${idx}" title="Edit">✎</button>
+         <button class="icon-btn danger" data-act="delete" data-idx="${idx}" title="Delete">🗑</button>`;
+    return `
+      <div class="ident-item ${id.standard ? 'standard' : 'custom'} ${id.enabled ? '' : 'disabled'}">
+        <div class="ident-toggle ${id.enabled ? 'on' : ''}" data-act="toggle" data-idx="${idx}"></div>
+        <div class="ident-info">
+          <div class="ident-label">
+            ${esc(id.label)}
+            <span class="ident-key">${esc(id.key)}</span>
+            ${id.core ? '<span class="ident-key" style="color:var(--red); background:rgba(248,113,113,0.1)">required</span>' : ''}
+            ${!id.standard ? '<span class="ident-key" style="color:var(--purple); background:rgba(167,139,250,0.1)">custom</span>' : ''}
+          </div>
+          <div class="ident-desc">${esc(id.description)}</div>
+        </div>
+        ${typePill}
+        <div class="ident-actions">${actions}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire up clicks
+  list.querySelectorAll('[data-act]').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const act = el.dataset.act;
+      const idx = parseInt(el.dataset.idx);
+      const id = state.identifiers[idx];
+      if (act === 'toggle') {
+        if (id.core) { toast('Required identifiers cannot be disabled', 'error'); return; }
+        id.enabled = !id.enabled;
+        await saveIdentifiers();
+        renderSettings();
+        renderCustomFields();
+      } else if (act === 'edit' || act === 'edit-desc') {
+        openIdentModal(id);
+      } else if (act === 'delete') {
+        if (!confirm(`Delete custom identifier "${id.label}"? Data in existing cards for this field will remain in storage but won't be visible.`)) return;
+        state.identifiers.splice(idx, 1);
+        await saveIdentifiers();
+        renderSettings();
+        renderCustomFields();
+        toast('Identifier deleted', 'success');
+      }
+    });
+  });
+
+  // Update AI prompt preview
+  $('#ai-prompt-preview').textContent = buildAIPrompt();
+}
+
+// Proxy config handlers
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'btn-save-proxy') {
+    const url = $('#proxy-url').value.trim().replace(/\/$/, '');
+    if (url && !/^https?:\/\//.test(url)) {
+      toast('Proxy URL must start with https://', 'error'); return;
+    }
+    ApiConfig.proxyUrl = url;
+    updateProxyStatusPill();
+    toast('Proxy URL saved', 'success');
+  }
+  else if (e.target.id === 'btn-test-proxy') {
+    const url = $('#proxy-url').value.trim().replace(/\/$/, '');
+    if (!url) { toast('Enter a proxy URL first', 'error'); return; }
+    e.target.disabled = true;
+    e.target.textContent = 'Testing...';
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (res.ok) {
+        toast('✓ Proxy reachable — save to start scanning', 'success');
+      } else {
+        toast(`Proxy returned ${res.status} — check deployment`, 'error');
+      }
+    } catch (err) {
+      toast(`Cannot reach proxy: ${err.message}`, 'error');
+    } finally {
+      e.target.disabled = false;
+      e.target.textContent = 'Test Connection';
+    }
+  }
+  else if (e.target.id === 'btn-toggle-guide') {
+    const guide = $('#proxy-guide');
+    const visible = guide.style.display !== 'none';
+    guide.style.display = visible ? 'none' : 'block';
+    e.target.textContent = visible ? 'Show Setup Guide' : 'Hide Setup Guide';
+  }
+  else if (e.target.id === 'btn-show-worker') {
+    const pre = $('#worker-code');
+    const visible = pre.style.display !== 'none';
+    if (!visible) pre.textContent = WORKER_CODE;
+    pre.style.display = visible ? 'none' : 'block';
+    e.target.textContent = visible ? 'Show worker.js Code' : 'Hide worker.js Code';
+  }
+  else if (e.target.id === 'btn-copy-worker') {
+    try {
+      await navigator.clipboard.writeText(WORKER_CODE);
+      toast('worker.js copied to clipboard', 'success');
+    } catch {
+      toast('Copy failed — use Show Code and copy manually', 'error');
+    }
+  }
+});
+
+function openIdentModal(existing = null) {
+  state.editingIdentKey = existing ? existing.key : null;
+  $('#ident-modal-title').textContent = existing ? (existing.standard ? `Edit: ${existing.label}` : `Edit Custom: ${existing.label}`) : 'Add Custom Identifier';
+  $('#ident-label').value = existing?.label || '';
+  $('#ident-key').value = existing?.key || '';
+  $('#ident-type').value = existing?.type || 'text';
+  $('#ident-enabled').value = (existing?.enabled ?? true) ? 'true' : 'false';
+  $('#ident-desc').value = existing?.description || '';
+
+  // Standard identifiers: only description can be edited, not key/type/label
+  const isStandard = !!(existing && existing.standard);
+  $('#ident-label').disabled = isStandard;
+  $('#ident-key').disabled = isStandard || !!existing;
+  $('#ident-type').disabled = isStandard;
+
+  $('#ident-modal').classList.add('show');
+  setTimeout(() => (isStandard ? $('#ident-desc') : $('#ident-label')).focus(), 100);
+}
+
+function closeIdentModal() {
+  $('#ident-modal').classList.remove('show');
+  state.editingIdentKey = null;
+}
+
+// Auto-generate key from label
+$('#ident-label').addEventListener('input', (e) => {
+  if (state.editingIdentKey) return; // editing existing, don't auto-change
+  const key = e.target.value.trim()
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .split(/\s+/)
+    .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join('');
+  $('#ident-key').value = key;
+});
+
+$('#ident-modal-close').addEventListener('click', closeIdentModal);
+$('#ident-cancel').addEventListener('click', closeIdentModal);
+$('#ident-modal').addEventListener('click', e => { if (e.target === $('#ident-modal')) closeIdentModal(); });
+
+$('#ident-save').addEventListener('click', async () => {
+  const label = $('#ident-label').value.trim();
+  const key = $('#ident-key').value.trim();
+  const type = $('#ident-type').value;
+  const enabled = $('#ident-enabled').value === 'true';
+  const description = $('#ident-desc').value.trim();
+
+  if (!label) { toast('Label is required', 'error'); return; }
+  if (!key || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)) { toast('Key must start with letter and contain only letters/numbers/underscores', 'error'); return; }
+  if (!description) { toast('Description is required (AI needs it to know what to extract)', 'error'); return; }
+
+  const existingIdx = state.identifiers.findIndex(i => i.key === (state.editingIdentKey || key));
+  if (state.editingIdentKey && existingIdx >= 0) {
+    // Editing
+    const current = state.identifiers[existingIdx];
+    if (current.standard) {
+      // Only description and enabled can change
+      current.description = description;
+      current.enabled = enabled;
+    } else {
+      state.identifiers[existingIdx] = { ...current, label, description, type, enabled };
+    }
+  } else {
+    // Adding new custom
+    if (state.identifiers.find(i => i.key === key)) {
+      toast('A field with this key already exists', 'error'); return;
+    }
+    state.identifiers.push({ key, label, description, type, enabled, standard: false });
+  }
+  await saveIdentifiers();
+  closeIdentModal();
+  renderSettings();
+  renderCustomFields();
+  toast('Identifier saved', 'success');
+});
+
+$('#btn-add-ident').addEventListener('click', () => openIdentModal(null));
+
+$('#btn-reset-ident').addEventListener('click', async () => {
+  if (!confirm('Reset all identifiers to defaults? Any custom identifiers will be deleted.')) return;
+  state.identifiers = DEFAULT_IDENTIFIERS.map(i => ({...i}));
+  await saveIdentifiers();
+  renderSettings();
+  renderCustomFields();
+  toast('Identifiers reset to defaults', 'success');
+});
+
+// -------- Keyboard shortcuts --------
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.key === '1') switchView('collection');
+  else if (e.key === '2') switchView('scan');
+  else if (e.key === '3') switchView('stats');
+  else if (e.key === '4') switchView('data');
+  else if (e.key === '5') switchView('settings');
+  else if (e.key === '/') { e.preventDefault(); switchView('collection'); $('#f-search').focus(); }
+  else if (e.key === 'Escape') { closeDetail(); closeIdentModal(); }
+});
+
+// -------- Init --------
+(async function init() {
+  await loadIdentifiers();
+  await loadAllCards();
+  populateFilterOptions();
+  renderCollection();
+  renderCaptureSlots();
+  renderCustomFields();
+})();
+</script>
+
+</body>
+</html>

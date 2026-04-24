@@ -30,18 +30,33 @@ Repo is already set up. Any push to `main` redeploys the site within a minute or
 
 ### 2. Cloudflare Worker (AI proxy)
 
-One-time setup:
+One-time setup. Cloudflare's dashboard layout changes a few times a year — if the specific menu labels below don't match exactly, look for "Workers" somewhere in the left sidebar.
 
-1. Log in at [dash.cloudflare.com](https://dash.cloudflare.com)
-2. Workers & Pages → Create → Create Worker → name it `card-vault-proxy` → Deploy
-3. Edit code → paste contents of [`worker.js`](./worker.js) → Deploy
-4. Settings → Variables and Secrets → add two secrets:
-   - `ANTHROPIC_API_KEY` — get from [console.anthropic.com](https://console.anthropic.com) → API Keys
-   - `ALLOWED_ORIGIN` — set to `https://YOUR-USERNAME.github.io` to restrict the proxy to only this app
-5. Copy the worker URL (ends in `.workers.dev`)
-6. Open the live app → Settings → AI Proxy → paste URL → Save → Test Connection
+1. Sign in at [dash.cloudflare.com](https://dash.cloudflare.com) (free account is fine)
+2. In the left sidebar, find **Compute** or **Compute & AI** → click **Workers & Pages**
+3. Click **Create** (or **Create application**) → **Start with Hello World!** → **Get started**
+4. Name it `card-vault-proxy` → click **Deploy**. Cloudflare creates a basic worker and shows you its `.workers.dev` URL.
+5. Click **Continue to project** (or **Edit code** from the worker overview)
+6. In the code editor, select all existing code in `worker.js` (or `index.js`), delete it, and paste the contents of [`worker.js`](./worker.js) from this repo. Click **Deploy** (top right of editor).
+7. Go back to the worker overview → **Settings** tab → scroll to **Variables and Secrets** → click **Add**:
+   - Type: **Secret**
+   - Variable name: `ANTHROPIC_API_KEY`
+   - Value: your key from [console.anthropic.com](https://console.anthropic.com) → Settings → API Keys
+   - Click **Deploy**
+8. Click **Add** again to add a second secret (recommended for security):
+   - Type: **Secret**
+   - Variable name: `ALLOWED_ORIGIN`
+   - Value: `https://YOUR-USERNAME.github.io` (root URL only, no trailing slash, no path)
+   - Click **Deploy**
+9. Copy the worker URL from the overview page (ends in `.workers.dev`)
+10. Open the live app → **Settings** tab → **AI Proxy** → paste URL → **Save** → **Test Connection**. Green "✓ Proxy reachable" means you're live.
 
-To update the worker later: edit `worker.js` here, then copy-paste into the Cloudflare dashboard editor and redeploy. (This repo is the source of truth; Cloudflare is the runtime.)
+**Troubleshooting:**
+- "Add" missing under Variables and Secrets? You're on the Workers & Pages landing page, not inside your worker. Click into `card-vault-proxy` first.
+- Test Connection fails with CORS error? Check `ALLOWED_ORIGIN` matches your GitHub Pages URL exactly (no typos, no trailing slash).
+- "ANTHROPIC_API_KEY secret not set" error? The secret name must be exactly `ANTHROPIC_API_KEY` (case-sensitive).
+
+To update the worker code later: edit `worker.js` here, then copy-paste into the Cloudflare dashboard editor and redeploy. (This repo is the source of truth; Cloudflare is the runtime.)
 
 ## Files
 
