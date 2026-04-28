@@ -163,8 +163,6 @@
   .capture-slot img { width: 100%; height: 100%; object-fit: cover; }
   .capture-slot-label { position: absolute; top: 6px; left: 6px; font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 3px; }
   .capture-slot-empty { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-  #camera-video { width: 100%; max-height: 400px; background: #000; border-radius: 8px; border: 1px solid var(--border); }
-  #camera-hidden { display: none; }
 
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn {
@@ -350,6 +348,100 @@
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
     color: var(--gold); letter-spacing: 0.04em;
   }
+
+  /* Smart Camera */
+  .camera-stage {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--border);
+  }
+  .camera-stage video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .camera-stage canvas#camera-overlay {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .camera-status {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    padding: 6px 12px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--gold); letter-spacing: 0.04em; font-weight: 600;
+    border: 1px solid rgba(212, 168, 85, 0.3);
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .camera-status.locked {
+    background: rgba(52, 211, 153, 0.2);
+    border-color: rgba(52, 211, 153, 0.5);
+    color: var(--green);
+  }
+  .camera-status.searching {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.4);
+    color: var(--blue);
+  }
+  .camera-hint {
+    position: absolute; bottom: 10px; left: 10px; right: 10px;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+    padding: 6px 10px; border-radius: 6px;
+    font-size: 11px; color: var(--text-dim);
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .camera-hint.hidden { opacity: 0; }
+  #camera-hidden { display: none; }
+  .camera-options {
+    margin-top: 12px; padding: 10px 12px; background: var(--bg-elev);
+    border-radius: 6px; border: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .camera-options .checkbox-wrap { font-size: 12px; }
+
+  /* Capture flash */
+  @keyframes capture-flash {
+    0% { background: rgba(255,255,255,0); }
+    20% { background: rgba(255,255,255,0.85); }
+    100% { background: rgba(255,255,255,0); }
+  }
+  .camera-stage.flashing::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    animation: capture-flash 0.45s ease;
+    z-index: 5;
+  }
+
+  /* Angle samples grid */
+  .angle-sample-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px;
+  }
+  .angle-sample {
+    aspect-ratio: 2.5/3.5; background: #0f1420; border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--border); position: relative;
+  }
+  .angle-sample img { width: 100%; height: 100%; object-fit: cover; }
+  .angle-sample-num {
+    position: absolute; top: 2px; left: 2px;
+    background: rgba(0,0,0,0.7); color: var(--gold);
+    padding: 1px 4px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  }
+  #parallel-analysis {
+    padding: 10px 12px; background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 12px;
+  }
+  #parallel-analysis .pa-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  #parallel-analysis .pa-label { color: var(--text-dim); }
+  #parallel-analysis .pa-val { font-family: var(--font-mono); color: var(--gold); font-weight: 600; }
+  #parallel-analysis .pa-verdict {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+    color: var(--text); font-weight: 600;
+  }
 </style>
 </head>
 <body>
@@ -444,15 +536,24 @@
 
       <div>
         <div class="panel" style="margin-bottom: 16px;">
-          <div class="panel-title">Camera</div>
-          <video id="camera-video" autoplay playsinline muted></video>
+          <div class="panel-title">Smart Camera</div>
+          <div class="camera-stage">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <canvas id="camera-overlay"></canvas>
+            <div class="camera-status" id="cam-status">Press Start to begin</div>
+            <div class="camera-hint" id="cam-hint"></div>
+          </div>
           <canvas id="camera-hidden"></canvas>
           <div class="btn-row" style="margin-top: 12px;">
-            <button class="btn btn-secondary" id="btn-cam-start">Start Camera</button>
+            <button class="btn btn-primary" id="btn-cam-start">Start Camera</button>
             <button class="btn btn-secondary" id="btn-cam-flip" disabled>Flip</button>
-            <button class="btn btn-primary" id="btn-cap-front" disabled>Capture Front</button>
-            <button class="btn btn-primary" id="btn-cap-back" disabled>Capture Back</button>
+            <button class="btn btn-primary" id="btn-manual-cap" disabled>Manual Capture</button>
             <button class="btn btn-secondary" id="btn-cam-stop" disabled>Stop</button>
+          </div>
+          <div class="camera-options">
+            <label class="checkbox-wrap"><input type="checkbox" id="opt-auto-capture" checked /> Auto-capture when focused</label>
+            <label class="checkbox-wrap"><input type="checkbox" id="opt-angle-scan" /> Scan parallel (capture at multiple angles)</label>
+            <label class="checkbox-wrap"><input type="checkbox" id="opt-dedupe" checked /> Prevent duplicate captures</label>
           </div>
         </div>
 
@@ -464,11 +565,16 @@
               <div class="capture-slot-empty">No image</div>
             </div>
             <div class="capture-slot" id="slot-back">
-              <div class="capture-slot-label">Back</div>
+              <div class="capture-slot-label">Back (optional)</div>
               <div class="capture-slot-empty">No image</div>
             </div>
           </div>
-          <div class="btn-row">
+          <div id="angle-samples-section" style="display:none">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 12px 0 8px; font-weight: 600;">Angle Samples</div>
+            <div class="angle-sample-grid" id="angle-samples"></div>
+            <div id="parallel-analysis" style="margin-top: 10px;"></div>
+          </div>
+          <div class="btn-row" style="margin-top: 12px;">
             <button class="btn btn-ai" id="btn-ai" disabled>✨ Identify with AI</button>
             <label for="file-upload" class="btn btn-secondary" style="cursor:pointer">Upload File</label>
             <input type="file" id="file-upload" accept="image/*" style="display:none" multiple />
@@ -974,7 +1080,25 @@ const state = {
   currentFacing: 'environment',
   charts: {},
   identifiers: [],    // configurable scan identifiers
-  editingIdentKey: null
+  editingIdentKey: null,
+  // Smart camera
+  smartCam: {
+    rafId: null,             // animation frame loop id
+    detecting: false,        // detection loop running
+    lastCardHash: null,      // perceptual hash of last captured card
+    captureLockoutUntil: 0,  // ms timestamp; suppress captures until this
+    sharpnessHistory: [],    // last N sharpness scores for steadiness
+    edgeHistory: [],         // last N edge-fill scores
+    angleSamples: [],        // for parallel scan: array of {data, hsv}
+    angleScanActive: false,  // currently capturing angle samples
+    angleScanStartedAt: 0,
+    nextSlot: 'front',       // 'front' | 'back' for next auto capture
+    options: {
+      autoCapture: true,
+      angleScan: false,
+      dedupe: true
+    }
+  }
 };
 
 // -------- Default identifiers (matched to standard fields) --------
@@ -1246,18 +1370,45 @@ function renderCustomFields(values = {}) {
   }).join('');
 }
 
-// -------- Camera --------
+// -------- Smart Camera --------
+const SMART = {
+  // Detection thresholds
+  MIN_FILL_RATIO: 0.35,        // card edges should fill at least this much of frame
+  MAX_FILL_RATIO: 0.92,        // and not so much we're too close
+  MIN_SHARPNESS: 25,           // Laplacian variance threshold for sharpness
+  STEADY_FRAMES: 6,            // need N consecutive good frames to lock
+  STEADY_VARIANCE: 0.20,       // sharpness variance must be below this (relative)
+  CAPTURE_LOCKOUT_MS: 2200,    // suppress new captures for N ms after one
+  HASH_SIZE: 8,                // perceptual hash grid (8x8 = 64-bit)
+  HASH_DUPLICATE_DIST: 8,      // hamming distance threshold for "same card"
+  ANGLE_SAMPLE_COUNT: 5,       // how many samples to collect for parallel detection
+  ANGLE_SAMPLE_INTERVAL_MS: 600,
+  ANALYSIS_DOWNSCALE: 160      // detection runs at this width for speed
+};
+
 async function startCamera() {
   try {
     if (state.stream) stopCamera();
-    const constraints = { video: { facingMode: state.currentFacing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+    const constraints = { video: { facingMode: state.currentFacing, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
     state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-    $('#camera-video').srcObject = state.stream;
+    const video = $('#camera-video');
+    video.srcObject = state.stream;
+    await video.play().catch(() => {});
+
     $('#btn-cam-start').disabled = true;
     $('#btn-cam-flip').disabled = false;
-    $('#btn-cap-front').disabled = false;
-    $('#btn-cap-back').disabled = false;
+    $('#btn-manual-cap').disabled = false;
     $('#btn-cam-stop').disabled = false;
+
+    // Sync option toggles to state
+    state.smartCam.options.autoCapture = $('#opt-auto-capture').checked;
+    state.smartCam.options.angleScan = $('#opt-angle-scan').checked;
+    state.smartCam.options.dedupe = $('#opt-dedupe').checked;
+
+    setCamStatus('Searching for card...', 'searching');
+    setCamHint('Hold a sports card in front of the camera');
+
+    startDetectionLoop();
     toast('Camera started', 'success');
   } catch (err) {
     toast('Camera access denied or unavailable', 'error');
@@ -1266,13 +1417,27 @@ async function startCamera() {
 }
 
 function stopCamera() {
+  if (state.smartCam.rafId) cancelAnimationFrame(state.smartCam.rafId);
+  state.smartCam.rafId = null;
+  state.smartCam.detecting = false;
+  state.smartCam.angleScanActive = false;
+  state.smartCam.sharpnessHistory = [];
+  state.smartCam.edgeHistory = [];
+
   if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
   $('#camera-video').srcObject = null;
+
   $('#btn-cam-start').disabled = false;
   $('#btn-cam-flip').disabled = true;
-  $('#btn-cap-front').disabled = true;
-  $('#btn-cap-back').disabled = true;
+  $('#btn-manual-cap').disabled = true;
   $('#btn-cam-stop').disabled = true;
+
+  // Clear overlay
+  const ov = $('#camera-overlay');
+  if (ov) { const ctx = ov.getContext('2d'); ctx.clearRect(0,0,ov.width, ov.height); }
+
+  setCamStatus('Press Start to begin', '');
+  setCamHint('');
 }
 
 async function flipCamera() {
@@ -1280,33 +1445,490 @@ async function flipCamera() {
   await startCamera();
 }
 
-function captureFrame() {
+function setCamStatus(text, cls) {
+  const el = $('#cam-status');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'camera-status ' + (cls || '');
+}
+function setCamHint(text) {
+  const el = $('#cam-hint');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'camera-hint' + (text ? '' : ' hidden');
+}
+
+// -------- Detection loop --------
+function startDetectionLoop() {
+  state.smartCam.detecting = true;
+  const video = $('#camera-video');
+  const overlay = $('#camera-overlay');
+  const overlayCtx = overlay.getContext('2d');
+
+  // Detection canvas (downscaled for speed)
+  const det = document.createElement('canvas');
+  const detCtx = det.getContext('2d', { willReadFrequently: true });
+
+  let lastAngleSampleAt = 0;
+  let frameCounter = 0;
+
+  const tick = () => {
+    if (!state.smartCam.detecting) return;
+    state.smartCam.rafId = requestAnimationFrame(tick);
+    frameCounter++;
+    if (!video.videoWidth) return;
+
+    // Resize overlay to match video display size
+    if (overlay.width !== video.clientWidth || overlay.height !== video.clientHeight) {
+      overlay.width = video.clientWidth;
+      overlay.height = video.clientHeight;
+    }
+
+    // Run detection at downscaled resolution
+    const aspect = video.videoWidth / video.videoHeight;
+    det.width = SMART.ANALYSIS_DOWNSCALE;
+    det.height = Math.round(SMART.ANALYSIS_DOWNSCALE / aspect);
+    detCtx.drawImage(video, 0, 0, det.width, det.height);
+
+    // Only do heavy analysis every 3rd frame
+    if (frameCounter % 3 !== 0) return;
+
+    const imageData = detCtx.getImageData(0, 0, det.width, det.height);
+    const analysis = analyzeFrame(imageData);
+
+    // Draw overlay
+    drawOverlay(overlayCtx, overlay.width, overlay.height, analysis);
+
+    // Track history
+    state.smartCam.sharpnessHistory.push(analysis.sharpness);
+    state.smartCam.edgeHistory.push(analysis.edgeFill);
+    if (state.smartCam.sharpnessHistory.length > SMART.STEADY_FRAMES) {
+      state.smartCam.sharpnessHistory.shift();
+      state.smartCam.edgeHistory.shift();
+    }
+
+    // Update status
+    const now = Date.now();
+    const inLockout = now < state.smartCam.captureLockoutUntil;
+
+    // Angle scan in progress
+    if (state.smartCam.angleScanActive) {
+      const samples = state.smartCam.angleSamples.length;
+      const remaining = SMART.ANGLE_SAMPLE_COUNT - samples;
+      setCamStatus(`Scanning angles ${samples}/${SMART.ANGLE_SAMPLE_COUNT}`, 'searching');
+      setCamHint('Slowly tilt the card side to side');
+      if (now - lastAngleSampleAt > SMART.ANGLE_SAMPLE_INTERVAL_MS && analysis.fillRatio > SMART.MIN_FILL_RATIO) {
+        captureAngleSample();
+        lastAngleSampleAt = now;
+        if (state.smartCam.angleSamples.length >= SMART.ANGLE_SAMPLE_COUNT) {
+          finishAngleScan();
+        }
+      }
+      return;
+    }
+
+    if (inLockout) {
+      setCamStatus(state.smartCam.nextSlot === 'back' ? 'Flip to back if desired' : 'Captured!', 'locked');
+      return;
+    }
+
+    if (analysis.fillRatio < SMART.MIN_FILL_RATIO) {
+      setCamStatus('Move closer', 'searching');
+      setCamHint('Bring the card closer to the camera');
+      return;
+    }
+    if (analysis.fillRatio > SMART.MAX_FILL_RATIO) {
+      setCamStatus('Move back', 'searching');
+      setCamHint('Card is too close, move it back');
+      return;
+    }
+    if (analysis.sharpness < SMART.MIN_SHARPNESS) {
+      setCamStatus('Focusing...', 'searching');
+      setCamHint('Hold steady to allow autofocus');
+      return;
+    }
+
+    // Check steadiness (low variance over recent frames)
+    if (state.smartCam.sharpnessHistory.length >= SMART.STEADY_FRAMES) {
+      const arr = state.smartCam.sharpnessHistory;
+      const mean = arr.reduce((a,b)=>a+b,0) / arr.length;
+      const variance = arr.reduce((a,b)=>a+(b-mean)**2,0) / arr.length;
+      const relVar = Math.sqrt(variance) / mean;
+      const allSharp = arr.every(s => s >= SMART.MIN_SHARPNESS);
+      if (allSharp && relVar < SMART.STEADY_VARIANCE) {
+        setCamStatus('Card locked!', 'locked');
+        setCamHint('');
+        if (state.smartCam.options.autoCapture) {
+          performAutoCapture();
+        } else {
+          setCamHint('Tap Manual Capture');
+        }
+      } else {
+        setCamStatus('Hold still...', 'searching');
+        setCamHint('Almost there — keep the card steady');
+      }
+    }
+  };
+  state.smartCam.rafId = requestAnimationFrame(tick);
+}
+
+// -------- Frame analysis --------
+function analyzeFrame(imageData) {
+  const { data, width, height } = imageData;
+  const N = width * height;
+
+  // 1) Convert to grayscale + compute Laplacian variance for sharpness
+  const gray = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+    gray[i] = 0.299*r + 0.587*g + 0.114*b;
+  }
+  // Laplacian (3x3) on inner pixels
+  let lapMean = 0, lapM2 = 0, lapCount = 0;
+  for (let y = 1; y < height-1; y++) {
+    for (let x = 1; x < width-1; x++) {
+      const i = y*width + x;
+      const v = -gray[i-width-1] - gray[i-width] - gray[i-width+1]
+                -gray[i-1] + 8*gray[i] - gray[i+1]
+                -gray[i+width-1] - gray[i+width] - gray[i+width+1];
+      const delta = v - lapMean;
+      lapCount++;
+      lapMean += delta / lapCount;
+      lapM2 += delta * (v - lapMean);
+    }
+  }
+  const sharpness = Math.sqrt(lapM2 / Math.max(1, lapCount));
+
+  // 2) Edge density / fill ratio: count strong-gradient pixels and where they cluster
+  // Use Sobel-like edge magnitude; estimate bounding region of edges
+  let minX = width, minY = height, maxX = 0, maxY = 0, edgeCount = 0;
+  const threshold = 35;
+  for (let y = 1; y < height-1; y++) {
+    for (let x = 1; x < width-1; x++) {
+      const i = y*width + x;
+      const gx = gray[i+1] - gray[i-1];
+      const gy = gray[i+width] - gray[i-width];
+      const mag = Math.abs(gx) + Math.abs(gy);
+      if (mag > threshold) {
+        edgeCount++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  let bbox = null, fillRatio = 0;
+  if (edgeCount > 30 && maxX > minX && maxY > minY) {
+    const w = maxX - minX, h = maxY - minY;
+    bbox = { x: minX, y: minY, w, h };
+    fillRatio = (w * h) / (width * height);
+  }
+
+  return { sharpness, edgeCount, bbox, fillRatio, frameW: width, frameH: height };
+}
+
+function drawOverlay(ctx, displayW, displayH, analysis) {
+  ctx.clearRect(0, 0, displayW, displayH);
+  if (!analysis.bbox) return;
+  const sx = displayW / analysis.frameW;
+  const sy = displayH / analysis.frameH;
+  const x = analysis.bbox.x * sx;
+  const y = analysis.bbox.y * sy;
+  const w = analysis.bbox.w * sx;
+  const h = analysis.bbox.h * sy;
+
+  // Determine color based on lock state
+  const arr = state.smartCam.sharpnessHistory;
+  const allSharp = arr.length >= SMART.STEADY_FRAMES && arr.every(s => s >= SMART.MIN_SHARPNESS);
+  const goodFill = analysis.fillRatio >= SMART.MIN_FILL_RATIO && analysis.fillRatio <= SMART.MAX_FILL_RATIO;
+  const locked = allSharp && goodFill;
+
+  ctx.strokeStyle = locked ? 'rgba(52, 211, 153, 0.95)' : 'rgba(96, 165, 250, 0.7)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash(locked ? [] : [8, 6]);
+  ctx.strokeRect(x, y, w, h);
+
+  // Corner brackets for stylistic effect
+  if (locked) {
+    ctx.lineWidth = 4;
+    const c = Math.min(20, w/6, h/6);
+    ctx.beginPath();
+    ctx.moveTo(x, y+c); ctx.lineTo(x, y); ctx.lineTo(x+c, y);
+    ctx.moveTo(x+w-c, y); ctx.lineTo(x+w, y); ctx.lineTo(x+w, y+c);
+    ctx.moveTo(x+w, y+h-c); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-c, y+h);
+    ctx.moveTo(x+c, y+h); ctx.lineTo(x, y+h); ctx.lineTo(x, y+h-c);
+    ctx.stroke();
+  }
+}
+
+// -------- Capture --------
+function captureFrame(maxDim = 900) {
   const video = $('#camera-video');
   if (!video.videoWidth) return null;
   const canvas = $('#camera-hidden');
-  // Max dimension 900px to keep base64 reasonable
-  const maxDim = 900;
   const ratio = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
   canvas.width = Math.floor(video.videoWidth * ratio);
   canvas.height = Math.floor(video.videoHeight * ratio);
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.82);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
+// Perceptual hash (8x8 average DCT-style) for duplicate detection
+function perceptualHash(dataURL) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const size = SMART.HASH_SIZE;
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, size, size);
+      const id = ctx.getImageData(0, 0, size, size).data;
+      const grays = [];
+      for (let i = 0; i < size*size; i++) {
+        grays.push(0.299*id[i*4] + 0.587*id[i*4+1] + 0.114*id[i*4+2]);
+      }
+      const mean = grays.reduce((a,b)=>a+b, 0) / grays.length;
+      const bits = grays.map(g => g > mean ? 1 : 0);
+      resolve(bits);
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataURL;
+  });
+}
+
+function hammingDistance(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
+}
+
+function flashCamera() {
+  const stage = $('.camera-stage');
+  if (!stage) return;
+  stage.classList.add('flashing');
+  setTimeout(() => stage.classList.remove('flashing'), 500);
+}
+
+async function performAutoCapture() {
+  const data = captureFrame();
+  if (!data) return;
+
+  // Duplicate check
+  if (state.smartCam.options.dedupe) {
+    const hash = await perceptualHash(data);
+    const last = state.smartCam.lastCardHash;
+    if (last && hammingDistance(hash, last) <= SMART.HASH_DUPLICATE_DIST) {
+      // Same card — suppress
+      state.smartCam.captureLockoutUntil = Date.now() + 1500;
+      setCamStatus('Same card — skipped', 'locked');
+      setCamHint('Show a different card or angle');
+      return;
+    }
+    state.smartCam.lastCardHash = hash;
+  }
+
+  flashCamera();
+
+  // Decide where to put it
+  if (state.smartCam.nextSlot === 'front' || !state.capturedFront) {
+    state.capturedFront = data;
+    state.smartCam.nextSlot = 'back';
+
+    if (state.smartCam.options.angleScan) {
+      // Begin angle scan
+      state.smartCam.angleSamples = [{ data, hsv: null }];
+      state.smartCam.angleScanActive = true;
+      state.smartCam.angleScanStartedAt = Date.now();
+      $('#angle-samples-section').style.display = '';
+      renderAngleSamples();
+    } else {
+      toast('Front captured', 'success');
+    }
+  } else {
+    state.capturedBack = data;
+    state.smartCam.nextSlot = 'front';
+    toast('Back captured', 'success');
+  }
+
+  state.smartCam.captureLockoutUntil = Date.now() + SMART.CAPTURE_LOCKOUT_MS;
+  state.smartCam.sharpnessHistory = [];
+  renderCaptureSlots();
+}
+
+// Manual capture (user override) — bypasses lockout & dedupe
+async function manualCapture() {
+  const data = captureFrame();
+  if (!data) { toast('Camera not ready', 'error'); return; }
+  flashCamera();
+  const hash = await perceptualHash(data);
+  state.smartCam.lastCardHash = hash;
+
+  if (!state.capturedFront) {
+    state.capturedFront = data;
+    state.smartCam.nextSlot = 'back';
+    toast('Front captured', 'success');
+  } else if (!state.capturedBack) {
+    state.capturedBack = data;
+    state.smartCam.nextSlot = 'front';
+    toast('Back captured', 'success');
+  } else {
+    state.capturedFront = data;
+    state.capturedBack = null;
+    state.smartCam.nextSlot = 'back';
+    toast('Front replaced', 'success');
+  }
+  state.smartCam.captureLockoutUntil = Date.now() + SMART.CAPTURE_LOCKOUT_MS;
+  renderCaptureSlots();
+}
+
+// -------- Angle scan / parallel detection --------
+async function captureAngleSample() {
+  const data = captureFrame(640); // smaller — we just need color analysis
+  if (!data) return;
+  state.smartCam.angleSamples.push({ data, hsv: null });
+  flashCamera();
+  renderAngleSamples();
+}
+
+async function decodeImage(dataURL) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = dataURL;
+  });
+}
+
+async function imageColorStats(dataURL) {
+  const img = await decodeImage(dataURL);
+  const w = 80, h = Math.round(80 * img.height / img.width);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const id = ctx.getImageData(0, 0, w, h).data;
+  let rSum=0, gSum=0, bSum=0, hueSum=0, satSum=0, valSum=0, n=0;
+  let dominantHues = [0,0,0,0,0,0]; // 6 hue bins (60° each)
+  for (let i = 0; i < id.length; i += 4) {
+    const r = id[i], g = id[i+1], b = id[i+2];
+    rSum += r; gSum += g; bSum += b;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    const v = max / 255;
+    const s = max === 0 ? 0 : (max - min) / max;
+    let hue = 0;
+    if (max !== min) {
+      if (max === r) hue = ((g - b) / (max - min)) % 6;
+      else if (max === g) hue = (b - r) / (max - min) + 2;
+      else hue = (r - g) / (max - min) + 4;
+      hue = (hue * 60 + 360) % 360;
+    }
+    hueSum += hue; satSum += s; valSum += v;
+    if (s > 0.2) dominantHues[Math.floor(hue / 60) % 6]++;
+    n++;
+  }
+  return {
+    avgR: rSum/n, avgG: gSum/n, avgB: bSum/n,
+    avgHue: hueSum/n, avgSat: satSum/n, avgVal: valSum/n,
+    hueBins: dominantHues
+  };
+}
+
+async function finishAngleScan() {
+  state.smartCam.angleScanActive = false;
+  setCamStatus('Analyzing parallel...', 'searching');
+  setCamHint('');
+
+  // Fill in HSV stats for samples that don't have them
+  for (const s of state.smartCam.angleSamples) {
+    if (!s.hsv) s.hsv = await imageColorStats(s.data);
+  }
+
+  const samples = state.smartCam.angleSamples;
+  // Compute hue variance and saturation variance across samples
+  const hues = samples.map(s => s.hsv.avgHue);
+  const sats = samples.map(s => s.hsv.avgSat);
+  const vals = samples.map(s => s.hsv.avgVal);
+
+  // Circular hue variance
+  const hueRad = hues.map(h => h * Math.PI / 180);
+  const sinMean = hueRad.reduce((a,b)=>a+Math.sin(b),0) / hueRad.length;
+  const cosMean = hueRad.reduce((a,b)=>a+Math.cos(b),0) / hueRad.length;
+  const R = Math.sqrt(sinMean*sinMean + cosMean*cosMean);
+  const hueShift = (1 - R) * 180; // 0 = no shift, ~90+ = strong shift
+
+  const satRange = Math.max(...sats) - Math.min(...sats);
+  const valRange = Math.max(...vals) - Math.min(...vals);
+
+  // Heuristic verdict
+  let verdict = 'Likely base card (no significant color shift)';
+  let parallelGuess = '';
+  if (hueShift > 20 || satRange > 0.18 || valRange > 0.20) {
+    verdict = 'Possible parallel detected';
+    if (hueShift > 35) parallelGuess = 'Refractor / Rainbow Foil (strong rainbow shift)';
+    else if (satRange > 0.25) parallelGuess = 'Prizm / Chrome / Holo (saturation shift)';
+    else if (valRange > 0.25) parallelGuess = 'Foilboard / Shimmer (brightness shift)';
+    else parallelGuess = 'Subtle parallel (possible refractor or matte parallel)';
+  }
+
+  // Display analysis
+  const anEl = $('#parallel-analysis');
+  anEl.innerHTML = `
+    <div class="pa-row"><span class="pa-label">Samples</span><span class="pa-val">${samples.length}</span></div>
+    <div class="pa-row"><span class="pa-label">Hue shift across angles</span><span class="pa-val">${hueShift.toFixed(1)}°</span></div>
+    <div class="pa-row"><span class="pa-label">Saturation range</span><span class="pa-val">${(satRange*100).toFixed(0)}%</span></div>
+    <div class="pa-row"><span class="pa-label">Brightness range</span><span class="pa-val">${(valRange*100).toFixed(0)}%</span></div>
+    <div class="pa-verdict">${verdict}${parallelGuess ? ' — <span style="color:var(--gold)">' + parallelGuess + '</span>' : ''}</div>
+  `;
+
+  // Pre-fill parallel field if guessed and currently empty
+  const parallelField = $('#fld-parallel');
+  if (parallelGuess && !parallelField.value) {
+    if (parallelGuess.includes('Refractor')) parallelField.value = 'Refractor (suspected)';
+    else if (parallelGuess.includes('Prizm')) parallelField.value = 'Prizm (suspected)';
+    else if (parallelGuess.includes('Foilboard')) parallelField.value = 'Foil (suspected)';
+  }
+
+  setCamStatus('Card locked!', 'locked');
+  toast(verdict, 'success');
+  state.smartCam.captureLockoutUntil = Date.now() + 2000;
+  state.smartCam.sharpnessHistory = [];
+}
+
+function renderAngleSamples() {
+  const grid = $('#angle-samples');
+  if (!grid) return;
+  grid.innerHTML = state.smartCam.angleSamples.map((s, idx) => `
+    <div class="angle-sample">
+      <div class="angle-sample-num">${idx+1}</div>
+      <img src="${s.data}" alt="Angle sample ${idx+1}" />
+    </div>
+  `).join('');
+}
+
+// -------- Wire up smart-camera buttons & options --------
 $('#btn-cam-start').addEventListener('click', startCamera);
 $('#btn-cam-flip').addEventListener('click', flipCamera);
 $('#btn-cam-stop').addEventListener('click', stopCamera);
-$('#btn-cap-front').addEventListener('click', () => {
-  const data = captureFrame();
-  if (data) { state.capturedFront = data; renderCaptureSlots(); toast('Front captured', 'success'); }
-});
-$('#btn-cap-back').addEventListener('click', () => {
-  const data = captureFrame();
-  if (data) { state.capturedBack = data; renderCaptureSlots(); toast('Back captured', 'success'); }
+$('#btn-manual-cap').addEventListener('click', manualCapture);
+
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'opt-auto-capture') state.smartCam.options.autoCapture = e.target.checked;
+  if (e.target.id === 'opt-angle-scan') state.smartCam.options.angleScan = e.target.checked;
+  if (e.target.id === 'opt-dedupe') state.smartCam.options.dedupe = e.target.checked;
 });
 
 $('#btn-clear-img').addEventListener('click', () => {
-  state.capturedFront = null; state.capturedBack = null;
+  state.capturedFront = null;
+  state.capturedBack = null;
+  state.smartCam.angleSamples = [];
+  state.smartCam.lastCardHash = null;
+  state.smartCam.nextSlot = 'front';
+  $('#angle-samples-section').style.display = 'none';
+  $('#angle-samples').innerHTML = '';
+  $('#parallel-analysis').innerHTML = '';
   renderCaptureSlots();
   $('#ai-status').className = 'ai-status';
 });
@@ -1364,7 +1986,7 @@ function renderCaptureSlots() {
     }
   };
   renderSlot($('#slot-front'), state.capturedFront, 'Front');
-  renderSlot($('#slot-back'), state.capturedBack, 'Back');
+  renderSlot($('#slot-back'), state.capturedBack, 'Back (optional)');
   $('#btn-ai').disabled = !state.capturedFront;
 }
 
