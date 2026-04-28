@@ -617,18 +617,17 @@
           </div>
           <div>
             <label>Brand</label>
-            <input type="text" id="fld-brand" placeholder="Topps, Panini, Bowman..." list="brand-list" />
-            <datalist id="brand-list">
-              <option value="Topps"><option value="Topps Chrome"><option value="Bowman"><option value="Bowman Chrome">
-              <option value="Panini"><option value="Panini Prizm"><option value="Panini Select"><option value="Panini Donruss">
-              <option value="Panini Optic"><option value="Panini Mosaic"><option value="Panini Contenders"><option value="Panini National Treasures">
-              <option value="Upper Deck"><option value="Fleer"><option value="Score"><option value="Donruss">
-              <option value="Leaf"><option value="Pinnacle"><option value="SAGE"><option value="Sage Hit">
-            </datalist>
+            <select id="fld-brand">
+              <option value="">— select year/sport first —</option>
+            </select>
+            <input type="text" id="fld-brand-other" placeholder="Type custom brand" style="display:none; margin-top:6px" />
           </div>
           <div>
             <label>Set / Series</label>
-            <input type="text" id="fld-set" placeholder="e.g., Chrome, Update, Heritage" />
+            <select id="fld-set">
+              <option value="">— select brand first —</option>
+            </select>
+            <input type="text" id="fld-set-other" placeholder="Type custom set" style="display:none; margin-top:6px" />
           </div>
           <div>
             <label>Card Number</label>
@@ -636,7 +635,10 @@
           </div>
           <div>
             <label>Parallel / Variant</label>
-            <input type="text" id="fld-parallel" placeholder="e.g., Refractor, Silver Prizm" />
+            <select id="fld-parallel">
+              <option value="">Base (no parallel)</option>
+            </select>
+            <input type="text" id="fld-parallel-other" placeholder="Type custom parallel" style="display:none; margin-top:6px" />
           </div>
           <div>
             <label>Serial # (if numbered)</label>
@@ -727,6 +729,7 @@
 
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-primary btn-block" id="btn-save">Save to Vault</button>
+          <button class="btn btn-secondary" id="btn-recalc-options" title="Refresh dropdown options based on current selections">↻ Recalc Options</button>
           <button class="btn btn-secondary" id="btn-reset-form">Reset Form</button>
         </div>
       </div>
@@ -1122,6 +1125,327 @@ const DEFAULT_IDENTIFIERS = [
 function standardKeys() { return new Set(DEFAULT_IDENTIFIERS.map(i => i.key)); }
 function getCustomIdentifiers() { return state.identifiers.filter(i => !i.standard); }
 
+// =============================================================================
+// CARD DATABASE — sport / year-range / brand / set / parallels
+// =============================================================================
+// Each entry: { sports: [...], years: [start, end], brand, sets: { setName: [parallels] } }
+// "years" uses inclusive range. Use 9999 as end for "still in production".
+// Parallels are roughly the most common — users can type a custom one if needed.
+//
+// This dataset is intentionally broad rather than exhaustive — covers the
+// modern era thoroughly (1990–present) plus key vintage brands. For obscure
+// regional or oddball sets, the "Other..." escape hatch lets users type freely.
+
+const CARD_DB = [
+  // ===== TOPPS =====
+  { sports: ['Baseball'], years: [1951, 9999], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Silver Pack', 'Black', 'Rainbow Foil', 'Independence Day', 'Mother\'s Day Pink', 'Father\'s Day Blue', 'Memorial Day Camo', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum'],
+    'Update': ['Gold', 'Rainbow Foil', 'Black', 'Independence Day', 'Mother\'s Day Pink', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum'],
+    'Heritage': ['Chrome', 'Refractor', 'Black Refractor', 'Gold Refractor', 'Mini', 'Hot Box Chrome', '50th Anniversary'],
+    'Heritage High Number': ['Chrome', 'Refractor', 'Black Refractor', 'Mini'],
+    'Stadium Club': ['Foilboard', 'Red Foil', 'Black Foil', 'Gold Foil', 'Members Only', 'Rainbow Foil'],
+    'Allen & Ginter': ['Mini', 'Mini A&G Back', 'Mini Black', 'Mini Glossy', 'Black Border', 'Gold', 'Glossy', 'Wood'],
+    'Gypsy Queen': ['Black & White', 'Green', 'Indigo', 'Purple', 'Black Bordered', 'Missing Nameplate'],
+    'Big League': ['Gold', 'Red Foil', 'Blue', 'Orange', 'Rainbow Foil'],
+    'Archives': ['Blue', 'Red', 'Purple', 'Gold', 'Black', '1/1 Printing Plate'],
+    'Fire': ['Blue', 'Gold Minted', 'Magenta', 'Orange', 'Purple', 'Red', 'Flame Foil'],
+    'Tribute': ['Blue', 'Bronze', 'Gold', 'Green', 'Orange', 'Purple', 'Red'],
+    'Triple Threads': ['Sapphire', 'Emerald', 'Amethyst', 'Ruby', 'Onyx', 'Gold', 'Wood'],
+    'Tier One': ['Bronze', 'Gold', 'Silver', 'Black', 'Bronze Ink Auto'],
+    'Definitive': ['Gold Frame', 'Platinum Frame', 'Silver Frame', 'Onyx Black'],
+    'Five Star': ['Gold', 'Bronze', 'Silver', 'Diamond', 'Marble']
+  }},
+  { sports: ['Baseball'], years: [1996, 9999], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Aqua Refractor'],
+    'Update': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor'],
+    'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black', 'Lava'],
+    'Black': ['White Refractor', 'Gold Refractor', 'Red Refractor', 'Black Refractor', 'Atomic Refractor']
+  }},
+  { sports: ['Football'], years: [1956, 9999], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Black', 'Rainbow Foil', 'Vintage Stock', 'Inferno', 'Negative', 'Clear'],
+    'Heritage': ['Chrome', 'Refractor', 'Mini'],
+    'Stadium Club': ['Foilboard', 'Red Foil', 'Black Foil', 'Gold Foil', 'Members Only']
+  }},
+  { sports: ['Football'], years: [2007, 9999], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative']
+  }},
+
+  // ===== BOWMAN =====
+  { sports: ['Baseball'], years: [1948, 9999], brand: 'Bowman', sets: {
+    'Base': ['Gold', 'Silver', 'Blue', 'Green', 'Red', 'Orange', 'Purple', 'Yellow', 'Black', 'Rainbow Foil'],
+    'Prospects': ['Gold', 'Silver', 'Blue', 'Green', 'Red', 'Orange', 'Purple', 'Black', 'Rainbow Foil'],
+    'Heritage': ['Mini', 'Black', 'Gold', 'Blue']
+  }},
+  { sports: ['Baseball'], years: [1997, 9999], brand: 'Bowman Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Lava'],
+    'Prospects': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Aqua Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Negative', 'Lava'],
+    'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black', 'Lava']
+  }},
+  { sports: ['Baseball'], years: [2010, 9999], brand: 'Bowman Draft', sets: {
+    'Base': ['Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor'],
+    'Chrome': ['Refractor', 'Blue Refractor', 'Green Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor'],
+    'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black']
+  }},
+
+  // ===== PANINI PRIZM =====
+  { sports: ['Baseball','Basketball','Football','Soccer','Hockey','Boxing/MMA','Multi-Sport'], years: [2012, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Teal', 'Light Blue', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Nebula'],
+    'Draft Picks': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  }},
+  { sports: ['Football'], years: [2012, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Teal', 'Light Blue', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Color Blast', 'Sensational Signatures'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Nebula'],
+    'Draft Picks': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  }},
+
+  // ===== PANINI SELECT =====
+  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2013, 9999], brand: 'Panini Select', sets: {
+    'Concourse': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra', 'Camo'],
+    'Premier Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra'],
+    'Club Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra'],
+    'Field Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
+    'Suite Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  }},
+
+  // ===== PANINI DONRUSS / OPTIC / MOSAIC =====
+  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2014, 9999], brand: 'Panini Donruss', sets: {
+    'Base': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Press Proof', 'Press Proof Premium', 'Crystal', 'Vector', 'Career Stat Line', 'Season Stat Line', 'Diamond Kings'],
+    'Rated Rookies': ['Holo Blue', 'Holo Orange', 'Press Proof', 'Crystal', 'Diamond Kings'],
+    'Diamond Kings': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Black & White', 'Gold', 'Framed', 'Studio']
+  }},
+  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2016, 9999], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Lime Green Pulsar', 'Aqua', 'Pandora', 'Pink Velocity', 'Blue Velocity', 'Red Mojo', 'Choice', 'Checkerboard', 'Gold Vinyl', 'White Sparkle'],
+    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Aqua', 'Pandora']
+  }},
+  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2019, 9999], brand: 'Panini Mosaic', sets: {
+    'Base': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Red', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Purple', 'Mosaic Pink', 'Mosaic Black', 'Mosaic Gold', 'Mosaic Reactive Blue', 'Mosaic Reactive Yellow', 'Mosaic Reactive Orange', 'Mosaic Camo Pink', 'Mosaic Genesis', 'Mosaic Choice'],
+    'Rookies': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Pink', 'Mosaic Gold', 'Mosaic Reactive Blue']
+  }},
+
+  // ===== PANINI HIGH-END =====
+  { sports: ['Basketball','Football','Soccer','Baseball'], years: [2009, 9999], brand: 'Panini National Treasures', sets: {
+    'Base': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'Black'],
+    'Rookie Patch Auto': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'Black']
+  }},
+  { sports: ['Basketball','Football','Baseball'], years: [2010, 9999], brand: 'Panini Immaculate', sets: {
+    'Base': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman', 'NBA Logoman'],
+    'Rookie Patch Auto': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman']
+  }},
+  { sports: ['Basketball','Football','Soccer'], years: [2010, 9999], brand: 'Panini Flawless', sets: {
+    'Base': ['Sapphire', 'Ruby', 'Emerald', 'Diamond', 'Black', 'Gold'],
+    'Rookie Patch Auto': ['Sapphire', 'Ruby', 'Emerald', 'Diamond', 'Black', 'Gold']
+  }},
+  { sports: ['Basketball','Football'], years: [2008, 9999], brand: 'Panini Contenders', sets: {
+    'Base': ['Cracked Ice', 'Gold', 'Playoff Ticket', 'Championship Ticket', 'Super Bowl Ticket', 'Rookie Ticket', 'Rookie Ticket Auto', 'Variation'],
+    'Rookie Tickets': ['Cracked Ice', 'Gold', 'Playoff Ticket', 'Championship Ticket', 'Super Bowl Ticket']
+  }},
+
+  // ===== UPPER DECK =====
+  { sports: ['Baseball','Basketball','Football','Hockey','Golf'], years: [1989, 9999], brand: 'Upper Deck', sets: {
+    'Base': ['Gold', 'Silver', 'Diamond', 'Star Rookies'],
+    'SP Authentic': ['Gold', 'Silver', 'Future Watch', 'Future Watch Auto'],
+    'SPx': ['Gold', 'Silver', 'Spectrum'],
+    'Black Diamond': ['Diamond', 'Quad Diamond', 'Triple Diamond', 'Double Diamond', 'Single Diamond', 'Gold', 'Black']
+  }},
+  { sports: ['Hockey'], years: [1990, 9999], brand: 'Upper Deck', sets: {
+    'Series 1': ['Young Guns', 'Young Guns Canvas', 'Exclusives', 'High Gloss', 'UD Canvas'],
+    'Series 2': ['Young Guns', 'Young Guns Canvas', 'Exclusives', 'High Gloss', 'UD Canvas'],
+    'Extended': ['Young Guns', 'Young Guns Canvas', 'Exclusives']
+  }},
+  { sports: ['Hockey'], years: [1997, 9999], brand: 'Upper Deck SP Authentic', sets: {
+    'Base': ['Future Watch', 'Future Watch Auto', 'Future Watch Auto Patch', 'Limited', 'Rookie Patch']
+  }},
+  { sports: ['Hockey','Basketball'], years: [1998, 9999], brand: 'Upper Deck The Cup', sets: {
+    'Rookie Patch Auto': ['Limited Logos', 'Patch Auto', 'Cup Auto']
+  }},
+
+  // ===== FLEER =====
+  { sports: ['Baseball','Basketball','Football'], years: [1981, 2007], brand: 'Fleer', sets: {
+    'Base': ['Glossy', 'Tiffany'],
+    'Ultra': ['Gold Medallion', 'Platinum Medallion', 'Hot Pack'],
+    'Metal Universe': ['Precious Metal Gems (PMG) Green', 'Precious Metal Gems (PMG) Red', 'Precious Metal Gems (PMG) Blue', 'Precious Metal Gems (PMG) Purple']
+  }},
+
+  // ===== DONRUSS (CLASSIC) =====
+  { sports: ['Baseball'], years: [1981, 2005], brand: 'Donruss', sets: {
+    'Base': ['Diamond Kings', 'Rated Rookies'],
+    'Elite': ['Aspirations', 'Status', 'Crusade']
+  }},
+
+  // ===== SCORE =====
+  { sports: ['Baseball','Football'], years: [1988, 9999], brand: 'Score', sets: {
+    'Base': ['Glossy', 'Silver', 'Gold Zone', 'Red Zone', 'Black', 'Showcase']
+  }},
+
+  // ===== LEAF / SAGE / PRO SET (PROSPECT BRANDS) =====
+  { sports: ['Football','Basketball','Multi-Sport'], years: [2010, 9999], brand: 'Leaf', sets: {
+    'Metal Draft': ['Prismatic Silver', 'Prismatic Blue', 'Prismatic Green', 'Prismatic Red', 'Prismatic Gold', 'Prismatic Black', 'Wave', 'Crystals', 'Mojo'],
+    'Trinity': ['Bronze', 'Silver', 'Gold', 'Black'],
+    'Valiant': ['Silver', 'Blue', 'Red', 'Green', 'Gold', 'Black']
+  }},
+  { sports: ['Football','Basketball'], years: [2002, 9999], brand: 'SAGE Hit', sets: {
+    'Base': ['Silver', 'Gold', 'Red', 'Blue', 'Green', 'Black', 'Aluminum'],
+    'Premier Draft': ['Silver', 'Gold', 'Red', 'Blue', 'Black']
+  }},
+
+  // ===== HOCKEY-SPECIFIC =====
+  { sports: ['Hockey'], years: [1990, 2003], brand: 'Pinnacle', sets: {
+    'Base': ['Artist\'s Proof', 'Museum Collection'],
+    'Mint': ['Coin', 'Bronze', 'Silver', 'Gold']
+  }},
+  { sports: ['Hockey'], years: [1992, 2002], brand: 'Parkhurst', sets: {
+    'Base': ['Emerald Ice', 'Gold']
+  }},
+  { sports: ['Hockey'], years: [2001, 9999], brand: 'In The Game', sets: {
+    'Heroes & Prospects': ['Gold', 'Silver', 'Black'],
+    'Ultimate Memorabilia': ['Gold', 'Silver']
+  }},
+
+  // ===== SOCCER-SPECIFIC =====
+  { sports: ['Soccer'], years: [2014, 9999], brand: 'Topps Chrome UEFA', sets: {
+    'Base': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Aqua', 'Lava']
+  }},
+  { sports: ['Soccer'], years: [1996, 9999], brand: 'Panini', sets: {
+    'World Cup': ['Sticker', 'Foil Sticker'],
+    'Adrenalyn XL': ['Limited Edition', 'Master', 'Ultimate']
+  }},
+  { sports: ['Soccer'], years: [2015, 9999], brand: 'Panini Prizm Premier League', sets: {
+    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Breakaway']
+  }},
+  { sports: ['Soccer'], years: [2018, 9999], brand: 'Topps Match Attax', sets: {
+    'Base': ['Limited Edition', '100 Club', 'Hat-Trick Hero']
+  }},
+
+  // ===== RACING =====
+  { sports: ['Racing'], years: [1991, 9999], brand: 'Panini', sets: {
+    'Prizm Racing': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
+    'Donruss Racing': ['Holo', 'Press Proof', 'Gold']
+  }},
+  { sports: ['Racing'], years: [1988, 2014], brand: 'Press Pass', sets: {
+    'Base': ['Holographic Foil', 'Gold', 'Silver'],
+    'Showcase': ['Silver', 'Gold', 'Holographic']
+  }},
+
+  // ===== BOXING / MMA =====
+  { sports: ['Boxing/MMA'], years: [2009, 9999], brand: 'Topps UFC', sets: {
+    'Knockout': ['Silver', 'Gold', 'Red', 'Black'],
+    'Strike': ['Silver', 'Gold', 'Red'],
+    'Champions': ['Silver', 'Gold', 'Onyx', 'Ruby']
+  }},
+  { sports: ['Boxing/MMA'], years: [2018, 9999], brand: 'Panini Prizm UFC', sets: {
+    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Mojo', 'Hyper'],
+    'Rookies': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold']
+  }},
+
+  // ===== GOLF =====
+  { sports: ['Golf'], years: [2001, 9999], brand: 'Upper Deck', sets: {
+    'SP Authentic Golf': ['Future Watch', 'Limited'],
+    'SPx Golf': ['Spectrum', 'Gold']
+  }}
+];
+
+// Common parallels added to ANY set as fallback hints
+const UNIVERSAL_PARALLELS = ['Printing Plate (Black)', 'Printing Plate (Cyan)', 'Printing Plate (Magenta)', 'Printing Plate (Yellow)', '1/1', 'Auto', 'Auto Patch', 'Patch'];
+
+// -------- DB query helpers --------
+function dbBrandsForSportYear(sport, year) {
+  const out = new Set();
+  for (const e of CARD_DB) {
+    if (sport && !e.sports.includes(sport)) continue;
+    if (year && (year < e.years[0] || year > e.years[1])) continue;
+    out.add(e.brand);
+  }
+  return [...out].sort((a,b) => a.localeCompare(b));
+}
+function dbSetsForBrand(sport, year, brand) {
+  const out = new Set();
+  for (const e of CARD_DB) {
+    if (e.brand !== brand) continue;
+    if (sport && !e.sports.includes(sport)) continue;
+    if (year && (year < e.years[0] || year > e.years[1])) continue;
+    Object.keys(e.sets).forEach(s => out.add(s));
+  }
+  return [...out].sort((a,b) => a.localeCompare(b));
+}
+function dbParallelsFor(sport, year, brand, setName) {
+  const out = new Set();
+  for (const e of CARD_DB) {
+    if (brand && e.brand !== brand) continue;
+    if (sport && !e.sports.includes(sport)) continue;
+    if (year && (year < e.years[0] || year > e.years[1])) continue;
+    if (setName) {
+      if (e.sets[setName]) e.sets[setName].forEach(p => out.add(p));
+    } else {
+      Object.values(e.sets).forEach(arr => arr.forEach(p => out.add(p)));
+    }
+  }
+  UNIVERSAL_PARALLELS.forEach(p => out.add(p));
+  return [...out].sort((a,b) => a.localeCompare(b));
+}
+
+// -------- Cascade renderer --------
+// Populates a select with options, preserving existing value if it's still valid;
+// if value isn't in options, switches to the "other" text input automatically.
+function populateSelect(selectId, otherInputId, options, currentValue, emptyLabel) {
+  const sel = $(selectId);
+  const otherInput = $(otherInputId);
+  if (!sel) return;
+
+  // Build options list (preserve "Other" handling)
+  const opts = [`<option value="">${esc(emptyLabel || '— select —')}</option>`];
+  options.forEach(o => opts.push(`<option value="${esc(o)}">${esc(o)}</option>`));
+  opts.push(`<option value="__other__">Other (type custom)…</option>`);
+  sel.innerHTML = opts.join('');
+
+  if (currentValue && options.includes(currentValue)) {
+    sel.value = currentValue;
+    if (otherInput) { otherInput.style.display = 'none'; otherInput.value = ''; }
+  } else if (currentValue) {
+    // Current value isn't in the new options — keep it via "Other" text input
+    sel.value = '__other__';
+    if (otherInput) { otherInput.style.display = ''; otherInput.value = currentValue; }
+  } else {
+    sel.value = '';
+    if (otherInput) { otherInput.style.display = 'none'; otherInput.value = ''; }
+  }
+}
+
+// Read effective value from a select+other pair
+function readSelectValue(selectId, otherInputId) {
+  const sel = $(selectId);
+  if (!sel) return '';
+  if (sel.value === '__other__') {
+    return ($(otherInputId)?.value || '').trim();
+  }
+  return sel.value || '';
+}
+
+// Recalculate all cascading dropdowns based on current sport/year/brand/set
+function recalcOptions(opts = {}) {
+  const sport = $('#fld-sport').value;
+  const year = parseInt($('#fld-year').value) || null;
+
+  // Brand: filtered by sport + year
+  const currentBrand = readSelectValue('#fld-brand', '#fld-brand-other');
+  const brands = dbBrandsForSportYear(sport, year);
+  populateSelect('#fld-brand', '#fld-brand-other', brands, currentBrand, brands.length ? '— select brand —' : '— no brands match —');
+
+  // Set: filtered by brand
+  const effectiveBrand = readSelectValue('#fld-brand', '#fld-brand-other');
+  const currentSet = readSelectValue('#fld-set', '#fld-set-other');
+  const sets = effectiveBrand ? dbSetsForBrand(sport, year, effectiveBrand) : [];
+  populateSelect('#fld-set', '#fld-set-other', sets, currentSet, sets.length ? '— select set —' : (effectiveBrand ? '— no sets cataloged —' : '— select brand first —'));
+
+  // Parallel: filtered by sport+year+brand+set
+  const effectiveSet = readSelectValue('#fld-set', '#fld-set-other');
+  const currentParallel = readSelectValue('#fld-parallel', '#fld-parallel-other');
+  const parallels = dbParallelsFor(sport, year, effectiveBrand, effectiveSet);
+  populateSelect('#fld-parallel', '#fld-parallel-other', parallels, currentParallel, 'Base (no parallel)');
+
+  if (opts.toast) toast(`Options refreshed (${brands.length} brand${brands.length===1?'':'s'}, ${sets.length} set${sets.length===1?'':'s'}, ${parallels.length} parallel${parallels.length===1?'':'s'})`, 'success');
+}
+
 // -------- Util --------
 const uid = () => 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 const $ = (sel) => document.querySelector(sel);
@@ -1240,12 +1564,14 @@ async function loadImagesFor(id) {
 
 // -------- Form helpers --------
 function resetForm() {
-  ['fld-cardid','fld-player','fld-year','fld-brand','fld-set','fld-num','fld-parallel','fld-serial','fld-team','fld-grade','fld-cert','fld-cost','fld-rawprice','fld-staticprice','fld-notes'].forEach(id => $('#'+id).value = '');
+  ['fld-cardid','fld-player','fld-year','fld-num','fld-serial','fld-team','fld-grade','fld-cert','fld-cost','fld-rawprice','fld-staticprice','fld-notes',
+   'fld-brand-other','fld-set-other','fld-parallel-other'].forEach(id => $('#'+id).value = '');
   $('#fld-sport').value = 'Baseball';
   $('#fld-condition').value = 'Near Mint';
   $('#fld-graded').value = 'no';
   $('#fld-grade-co').value = 'PSA';
   ['fld-rookie','fld-auto','fld-relic','fld-shortprint','fld-use-static'].forEach(id => $('#'+id).checked = false);
+  ['fld-brand-other','fld-set-other','fld-parallel-other'].forEach(id => $('#'+id).style.display = 'none');
   $('#fld-staticprice').disabled = true;
   $('#grade-block').style.display = 'none';
   state.editingId = null;
@@ -1253,6 +1579,7 @@ function resetForm() {
   state.capturedBack = null;
   renderCaptureSlots();
   renderCustomFields();
+  recalcOptions(); // rebuild dropdowns for default sport, no year
   $('#ai-status').className = 'ai-status';
   $('#btn-save').textContent = 'Save to Vault';
 }
@@ -1262,10 +1589,15 @@ function fillFormFromCard(card) {
   $('#fld-player').value = card.player || '';
   $('#fld-sport').value = card.sport || 'Baseball';
   $('#fld-year').value = card.year || '';
-  $('#fld-brand').value = card.brand || '';
-  $('#fld-set').value = card.setName || '';
+  // Recalc dropdowns first based on sport+year, then set values
+  recalcOptions();
+  setSelectOrOther('#fld-brand', '#fld-brand-other', card.brand);
+  recalcOptions(); // brand-aware sets
+  setSelectOrOther('#fld-set', '#fld-set-other', card.setName);
+  recalcOptions(); // set-aware parallels
+  setSelectOrOther('#fld-parallel', '#fld-parallel-other', card.parallel);
+
   $('#fld-num').value = card.cardNumber || '';
-  $('#fld-parallel').value = card.parallel || '';
   $('#fld-serial').value = card.serialNumber || '';
   $('#fld-team').value = card.team || '';
   $('#fld-condition').value = card.condition || 'Near Mint';
@@ -1287,6 +1619,28 @@ function fillFormFromCard(card) {
   renderCustomFields(card.customFields || {});
 }
 
+// Set a select to an exact option, or fall back to the "Other" text input
+function setSelectOrOther(selectId, otherInputId, value) {
+  const sel = $(selectId);
+  const otherInput = $(otherInputId);
+  if (!sel) return;
+  if (!value) {
+    sel.value = '';
+    if (otherInput) { otherInput.style.display = 'none'; otherInput.value = ''; }
+    return;
+  }
+  // Check if value exists as an option
+  const matches = Array.from(sel.options).find(o => o.value === value && o.value !== '__other__');
+  if (matches) {
+    sel.value = value;
+    if (otherInput) { otherInput.style.display = 'none'; otherInput.value = ''; }
+  } else {
+    // Use the "Other" path
+    sel.value = '__other__';
+    if (otherInput) { otherInput.style.display = ''; otherInput.value = value; }
+  }
+}
+
 function readForm() {
   const customFields = {};
   getCustomIdentifiers().forEach(id => {
@@ -1306,10 +1660,10 @@ function readForm() {
     player: $('#fld-player').value.trim(),
     sport: $('#fld-sport').value,
     year: parseInt($('#fld-year').value) || null,
-    brand: $('#fld-brand').value.trim(),
-    setName: $('#fld-set').value.trim(),
+    brand: readSelectValue('#fld-brand', '#fld-brand-other'),
+    setName: readSelectValue('#fld-set', '#fld-set-other'),
     cardNumber: $('#fld-num').value.trim(),
-    parallel: $('#fld-parallel').value.trim(),
+    parallel: readSelectValue('#fld-parallel', '#fld-parallel-other'),
     serialNumber: $('#fld-serial').value.trim(),
     team: $('#fld-team').value.trim(),
     condition: $('#fld-condition').value,
@@ -1342,6 +1696,61 @@ document.addEventListener('change', (e) => {
 $('#fld-graded').addEventListener('change', e => {
   $('#grade-block').style.display = e.target.value === 'yes' ? '' : 'none';
 });
+
+// -------- Cascading dropdown listeners --------
+$('#fld-sport').addEventListener('change', () => recalcOptions());
+$('#fld-year').addEventListener('input', () => {
+  // Debounce on input to avoid recalcing on every keystroke
+  clearTimeout(state._yearTimer);
+  state._yearTimer = setTimeout(() => recalcOptions(), 300);
+});
+$('#fld-year').addEventListener('change', () => recalcOptions());
+
+$('#fld-brand').addEventListener('change', (e) => {
+  const otherInput = $('#fld-brand-other');
+  if (e.target.value === '__other__') {
+    otherInput.style.display = '';
+    otherInput.focus();
+  } else {
+    otherInput.style.display = 'none';
+    otherInput.value = '';
+  }
+  recalcOptions();
+});
+$('#fld-brand-other').addEventListener('input', () => {
+  clearTimeout(state._brandTimer);
+  state._brandTimer = setTimeout(() => recalcOptions(), 400);
+});
+
+$('#fld-set').addEventListener('change', (e) => {
+  const otherInput = $('#fld-set-other');
+  if (e.target.value === '__other__') {
+    otherInput.style.display = '';
+    otherInput.focus();
+  } else {
+    otherInput.style.display = 'none';
+    otherInput.value = '';
+  }
+  recalcOptions();
+});
+$('#fld-set-other').addEventListener('input', () => {
+  clearTimeout(state._setTimer);
+  state._setTimer = setTimeout(() => recalcOptions(), 400);
+});
+
+$('#fld-parallel').addEventListener('change', (e) => {
+  const otherInput = $('#fld-parallel-other');
+  if (e.target.value === '__other__') {
+    otherInput.style.display = '';
+    otherInput.focus();
+  } else {
+    otherInput.style.display = 'none';
+    otherInput.value = '';
+  }
+});
+
+// Recalc button
+$('#btn-recalc-options').addEventListener('click', () => recalcOptions({ toast: true }));
 
 // -------- Custom fields renderer --------
 function renderCustomFields(values = {}) {
@@ -1884,11 +2293,14 @@ async function finishAngleScan() {
   `;
 
   // Pre-fill parallel field if guessed and currently empty
-  const parallelField = $('#fld-parallel');
-  if (parallelGuess && !parallelField.value) {
-    if (parallelGuess.includes('Refractor')) parallelField.value = 'Refractor (suspected)';
-    else if (parallelGuess.includes('Prizm')) parallelField.value = 'Prizm (suspected)';
-    else if (parallelGuess.includes('Foilboard')) parallelField.value = 'Foil (suspected)';
+  // Pre-fill parallel field if guessed and currently empty
+  const currentParallel = readSelectValue('#fld-parallel', '#fld-parallel-other');
+  if (parallelGuess && !currentParallel) {
+    let suspected = '';
+    if (parallelGuess.includes('Refractor')) suspected = 'Refractor (suspected)';
+    else if (parallelGuess.includes('Prizm')) suspected = 'Silver Prizm (suspected)';
+    else if (parallelGuess.includes('Foilboard')) suspected = 'Foil (suspected)';
+    if (suspected) setSelectOrOther('#fld-parallel', '#fld-parallel-other', suspected);
   }
 
   setCamStatus('Card locked!', 'locked');
@@ -2067,16 +2479,32 @@ $('#btn-ai').addEventListener('click', async () => {
 
     // Apply standard fields — only enabled ones, and only if non-empty
     const enabledKeys = new Set(state.identifiers.filter(i => i.enabled && i.standard).map(i => i.key));
-    const fieldMap = {
-      player: '#fld-player', sport: '#fld-sport', year: '#fld-year', brand: '#fld-brand',
-      setName: '#fld-set', cardNumber: '#fld-num', parallel: '#fld-parallel',
-      serialNumber: '#fld-serial', team: '#fld-team', rawPrice: '#fld-rawprice'
+
+    // Apply non-cascade fields directly
+    const directMap = {
+      player: '#fld-player', sport: '#fld-sport', year: '#fld-year',
+      cardNumber: '#fld-num', serialNumber: '#fld-serial', team: '#fld-team', rawPrice: '#fld-rawprice'
     };
-    Object.entries(fieldMap).forEach(([key, sel]) => {
+    Object.entries(directMap).forEach(([key, sel]) => {
       if (enabledKeys.has(key) && parsed[key] !== null && parsed[key] !== undefined && parsed[key] !== '' && parsed[key] !== 0) {
         $(sel).value = parsed[key];
       }
     });
+
+    // Cascade-aware fields: set sport+year first, recalc, then brand, recalc, then set, recalc, then parallel
+    recalcOptions();
+    if (enabledKeys.has('brand') && parsed.brand) {
+      setSelectOrOther('#fld-brand', '#fld-brand-other', parsed.brand);
+      recalcOptions();
+    }
+    if (enabledKeys.has('setName') && parsed.setName) {
+      setSelectOrOther('#fld-set', '#fld-set-other', parsed.setName);
+      recalcOptions();
+    }
+    if (enabledKeys.has('parallel') && parsed.parallel) {
+      setSelectOrOther('#fld-parallel', '#fld-parallel-other', parsed.parallel);
+    }
+
     const boolMap = { isRookie: '#fld-rookie', isAuto: '#fld-auto', isRelic: '#fld-relic', isShortPrint: '#fld-shortprint' };
     Object.entries(boolMap).forEach(([key, sel]) => {
       if (enabledKeys.has(key) && parsed[key]) $(sel).checked = true;
@@ -2979,6 +3407,7 @@ document.addEventListener('keydown', (e) => {
   renderCollection();
   renderCaptureSlots();
   renderCustomFields();
+  recalcOptions(); // populate cascading dropdowns based on default sport (Baseball)
 })();
 </script>
 
