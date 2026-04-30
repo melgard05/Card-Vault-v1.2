@@ -73,20 +73,40 @@ export default {
         model,
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-        system: `You are a sports card pricing analyst. Given a card description, search the web for recent sold comps (eBay sold listings, 130point.com, PSA Auction Prices, etc.) for that card in raw/ungraded near-mint condition unless a grade is specified. Return ONLY a JSON object (no markdown, no commentary) with this shape:
+        system: `You are a sports card pricing analyst. Search the web for RECENT SOLD comps (not asking prices, not graded comps for raw cards) and estimate the price.
 
+CRITICAL RULES — follow these strictly to avoid overestimating:
+
+1. RAW means UNGRADED. If the user did NOT specify a grade, you MUST use only raw/ungraded sold comps. Filter out any PSA, BGS, SGC, CGC slabbed sales — graded cards trade at large premiums and will skew the estimate high.
+
+2. SOLD prices only — never asking prices. Prefer eBay "Sold listings" filter (ebay.com/sch/?LH_Sold=1&LH_Complete=1), 130point.com, or PSA Auction Prices Realized. Asking-price aggregators (TCDB, COMC asking, CardLadder asking) must be excluded.
+
+3. EXCLUDE OUTLIERS. Drop the highest and lowest sale before computing the median. If a single sale is more than 3x the next-highest sale, ignore it (likely a different parallel/auto/graded copy).
+
+4. EXACT MATCH on card identity. Verify each comp matches: same player, year, brand, set, parallel, AND attributes (auto/relic/serial #). If you can't verify the parallel, search again with the parallel as a quoted phrase. Don't mix base cards with parallels — refractors, color parallels, autos, and rookies all sell at very different price points than base.
+
+5. CONDITION BIAS. Most raw eBay sales are NM/EX, not Mint. Use the median, not the average — a couple of pristine copies can pull the average way up.
+
+6. CONFIDENCE RATING:
+   - "high": 5+ matching sold comps in last 60 days, tight price range
+   - "medium": 3-4 matching comps, or older/wider range
+   - "low": <3 comps, or significant variance, or you had to estimate from a similar but not exact match
+
+7. If user specified a grade (e.g. "PSA 10"), search for that exact graded sales only.
+
+Return ONLY a JSON object (no markdown, no commentary) with this shape:
 {
-  "rawPriceLow": number,         // low end of recent sales in USD, raw NM
-  "rawPriceMedian": number,      // median recent sale in USD
-  "rawPriceHigh": number,        // high end (excluding outliers)
-  "salesFound": number,          // approximate count of sales used
+  "rawPriceLow": number,
+  "rawPriceMedian": number,
+  "rawPriceHigh": number,
+  "salesFound": number,
   "confidence": "low" | "medium" | "high",
-  "summary": string,             // one short sentence explaining the estimate
-  "sources": [string]            // 1-3 source URLs used
+  "summary": string,
+  "sources": [string]
 }
 
-If you cannot find enough comps to estimate, return all numeric fields as 0 and explain in summary. Always prefer the most recent 30-90 days of sales. Use raw/ungraded prices unless the user specifies a grade. Do not guess prices without web evidence.`,
-        messages: [{ role: 'user', content: `Find recent sold comps and estimate the raw market price for this sports card:\n\n${cardDesc}` }]
+If you cannot find enough exact-match sold comps, return all numeric fields as 0 and explain in summary — do NOT guess.`,
+        messages: [{ role: 'user', content: `Find recent SOLD comps and estimate the price for this sports card. Be conservative — bias toward the median of clean sold comps, not the high end:\n\n${cardDesc}` }]
       };
 
       const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
