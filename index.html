@@ -361,9 +361,11 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
+  .camera-stage.portrait { aspect-ratio: 3 / 4; max-height: 70vh; margin-left: auto; margin-right: auto; max-width: 380px; }
   .camera-stage video {
     width: 100%; height: 100%; object-fit: cover; display: block;
   }
+  .camera-stage.portrait video { object-fit: contain; }
   .camera-stage canvas#camera-overlay {
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none;
@@ -1121,12 +1123,15 @@ const state = {
     captureLockoutUntil: 0,  // ms timestamp; suppress captures until this
     sharpnessHistory: [],    // last N sharpness scores for steadiness
     edgeHistory: [],         // last N edge-fill scores
+    cardShapeHistory: [],    // booleans — last N frames "looks like a card"
+    rollingHashes: [],       // last N pHashes during preview, used to confirm same card stable
     angleSamples: [],        // for parallel scan: array of {data, hsv}
     angleScanActive: false,  // currently capturing angle samples
     angleScanStartedAt: 0,
     nextSlot: 'front',       // 'front' | 'back' for next auto capture
     lastAnalysis: null,      // most recent analyzeFrame() output
     lastCapturedMeta: null,  // analysis snapshot at the moment of front capture
+    pendingHash: null,       // hash of currently-locked candidate, awaiting confirmation
     options: {
       autoCapture: true,
       angleScan: false,
@@ -1921,18 +1926,23 @@ function renderCustomFields(values = {}) {
 // -------- Smart Camera --------
 const SMART = {
   // Detection thresholds
-  MIN_FILL_RATIO: 0.30,        // card edges should fill at least this much of frame
-  MAX_FILL_RATIO: 0.95,        // and not so much we're too close
+  MIN_FILL_RATIO: 0.18,        // card edges fill at least 18% of frame (lets you hold phone closer)
+  MAX_FILL_RATIO: 0.92,        // and not so much we're too close
   MIN_SHARPNESS: 22,           // Laplacian variance threshold for sharpness
-  STEADY_FRAMES: 4,            // need N consecutive good frames to lock (lower = faster)
-  STEADY_VARIANCE: 0.25,       // sharpness variance must be below this (relative)
-  CAPTURE_LOCKOUT_MS: 1500,    // suppress new captures for N ms after one
+  STEADY_FRAMES: 5,            // need N consecutive good frames to lock
+  STEADY_VARIANCE: 0.22,       // sharpness variance must be below this (relative)
+  CAPTURE_LOCKOUT_MS: 2200,    // suppress new captures for N ms after one
   HASH_SIZE: 8,                // perceptual hash grid (8x8 = 64-bit)
-  HASH_DUPLICATE_DIST: 8,      // hamming distance threshold for "same card"
+  HASH_DUPLICATE_DIST: 14,     // hamming distance threshold for "same card" (more forgiving)
   ANGLE_SAMPLE_COUNT: 5,       // how many samples to collect for parallel detection
   ANGLE_SAMPLE_INTERVAL_MS: 500,
   ANALYSIS_DOWNSCALE: 200,     // detection runs at this width for speed
   ANALYSIS_EVERY_N_FRAMES: 2,  // analyze every Nth frame (lower = more responsive)
+  // Card-shape gating (NEW — prevents capturing non-cards)
+  CARD_ASPECT_MIN: 1.25,       // long/short ratio min (allows for slight tilt + capture margin)
+  CARD_ASPECT_MAX: 1.65,       // long/short ratio max (allows for tobacco/mini variants)
+  CARD_CENTER_TOLERANCE: 0.30, // bbox center must be within 30% of frame center
+  CARD_SHAPE_FRAMES: 4,        // need N consecutive frames showing same card shape
   // Standard sports card physical dimensions (inches)
   CARD_W_INCH: 2.5,
   CARD_H_INCH: 3.5
@@ -1940,6 +1950,36 @@ const SMART = {
 
 // Tap to rescan
 let _tapToRescanInstalled = false;
+let _orientationListenerInstalled = false;
+
+// Sync the camera-stage layout to the current orientation
+function applyOrientationLayout() {
+  const stage = document.querySelector('.camera-stage');
+  if (!stage) return;
+  // Use window dimensions: portrait when window is taller than wide
+  const portrait = window.innerHeight > window.innerWidth;
+  stage.classList.toggle('portrait', portrait);
+  // Trigger overlay resize on next tick
+  const overlay = $('#camera-overlay');
+  const video = $('#camera-video');
+  if (overlay && video && video.clientWidth) {
+    overlay.width = video.clientWidth;
+    overlay.height = video.clientHeight;
+  }
+}
+
+function installOrientationListener() {
+  if (_orientationListenerInstalled) return;
+  _orientationListenerInstalled = true;
+  window.addEventListener('resize', applyOrientationLayout, { passive: true });
+  if (window.screen && window.screen.orientation) {
+    window.screen.orientation.addEventListener('change', () => {
+      // Slight delay to let the browser finish layout reflow
+      setTimeout(applyOrientationLayout, 100);
+    });
+  }
+  applyOrientationLayout();
+}
 
 async function startCamera() {
   try {
@@ -2007,6 +2047,7 @@ async function startCamera() {
     setCamStatus('Searching for card...', 'searching');
     setCamHint('Hold a sports card in front of the camera');
 
+    installOrientationListener();
     startDetectionLoop();
     const settings = videoTrack && videoTrack.getSettings ? videoTrack.getSettings() : null;
     if (settings && settings.width) {
@@ -2080,6 +2121,8 @@ function stopCamera() {
   state.smartCam.angleScanActive = false;
   state.smartCam.sharpnessHistory = [];
   state.smartCam.edgeHistory = [];
+  state.smartCam.cardShapeHistory = [];
+  state.smartCam.pendingHash = null;
 
   if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
   $('#camera-video').srcObject = null;
@@ -2166,12 +2209,14 @@ function startDetectionLoop() {
     // Draw overlay (now with angle/size info)
     drawOverlay(overlayCtx, overlay.width, overlay.height, analysis, dims);
 
-    // Track history
+    // Track histories
     state.smartCam.sharpnessHistory.push(analysis.sharpness);
-    state.smartCam.edgeHistory.push(analysis.edgeFill);
+    state.smartCam.cardShapeHistory.push(!!analysis.looksLikeCard);
     if (state.smartCam.sharpnessHistory.length > SMART.STEADY_FRAMES) {
       state.smartCam.sharpnessHistory.shift();
-      state.smartCam.edgeHistory.shift();
+    }
+    if (state.smartCam.cardShapeHistory.length > SMART.CARD_SHAPE_FRAMES) {
+      state.smartCam.cardShapeHistory.shift();
     }
 
     // Update status
@@ -2199,29 +2244,67 @@ function startDetectionLoop() {
       return;
     }
 
+    // Gate 1: Is there a bounding box at all?
+    if (!analysis.bbox) {
+      setCamStatus('Looking for card...', 'searching');
+      setCamHint('Place a sports card flat in the frame');
+      state.smartCam.pendingHash = null;
+      return;
+    }
+
+    // Gate 2: Does it actually LOOK like a card? (aspect ratio + centered + dense edges)
+    //         Require N consecutive frames of "looks like card" before proceeding.
+    const cardShapeArr = state.smartCam.cardShapeHistory;
+    const recentlyCardShaped = cardShapeArr.length >= SMART.CARD_SHAPE_FRAMES &&
+                                cardShapeArr.every(b => b === true);
+    if (!analysis.looksLikeCard) {
+      // Tell user WHY it's not detected as a card so they can adjust
+      let reason = 'Not a card';
+      if (analysis.cardAspect && (analysis.cardAspect < SMART.CARD_ASPECT_MIN || analysis.cardAspect > SMART.CARD_ASPECT_MAX)) {
+        reason = `Wrong shape (${analysis.cardAspect.toFixed(2)}:1)`;
+      } else if (analysis.centerOffset && analysis.centerOffset > SMART.CARD_CENTER_TOLERANCE) {
+        reason = 'Center the card';
+      }
+      setCamStatus(reason, 'searching');
+      setCamHint('Frame the card in the center');
+      state.smartCam.pendingHash = null;
+      return;
+    }
+    if (!recentlyCardShaped) {
+      setCamStatus('Confirming card...', 'searching');
+      setCamHint('Hold steady');
+      return;
+    }
+
+    // Gate 3: Fill ratio
     if (analysis.fillRatio < SMART.MIN_FILL_RATIO) {
       setCamStatus('Move closer', 'searching');
-      setCamHint('Bring the card closer to the camera');
+      setCamHint('Bring the card closer');
+      state.smartCam.pendingHash = null;
       return;
     }
     if (analysis.fillRatio > SMART.MAX_FILL_RATIO) {
       setCamStatus('Move back', 'searching');
-      setCamHint('Card is too close, move it back');
-      return;
-    }
-    if (analysis.sharpness < SMART.MIN_SHARPNESS) {
-      setCamStatus('Focusing...', 'searching');
-      setCamHint('Hold steady to allow autofocus');
-      return;
-    }
-    // If significantly tilted, prompt the user to straighten
-    if (Math.abs(analysis.rotationDeg) > 12) {
-      setCamStatus(`Tilted ${analysis.rotationDeg.toFixed(0)}°`, 'searching');
-      setCamHint('Straighten the card slightly');
+      setCamHint('Card is too close');
+      state.smartCam.pendingHash = null;
       return;
     }
 
-    // Check steadiness (low variance over recent frames)
+    // Gate 4: Sharpness
+    if (analysis.sharpness < SMART.MIN_SHARPNESS) {
+      setCamStatus('Focusing...', 'searching');
+      setCamHint('Hold steady for autofocus');
+      return;
+    }
+
+    // Gate 5: Tilt (skip if significantly off)
+    if (Math.abs(analysis.rotationDeg) > 12) {
+      setCamStatus(`Tilted ${analysis.rotationDeg.toFixed(0)}°`, 'searching');
+      setCamHint('Straighten the card');
+      return;
+    }
+
+    // Gate 6: Steadiness (low sharpness variance over recent frames)
     if (state.smartCam.sharpnessHistory.length >= SMART.STEADY_FRAMES) {
       const arr = state.smartCam.sharpnessHistory;
       const mean = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -2332,7 +2415,39 @@ function analyzeFrame(imageData) {
     rotationDeg = m > 45 ? m - 90 : m;
   }
 
-  return { sharpness, edgeCount, bbox, fillRatio, rotationDeg, frameW: width, frameH: height };
+  // 4) Card-shape gate: does this bounding box LOOK like a sports card?
+  //    a) Aspect ratio of bbox (long/short) must fall in card range
+  //    b) bbox must be roughly centered in the frame (cards are framed deliberately,
+  //       random rectangles in the scene typically aren't)
+  //    c) edge density must be reasonable (not just a faint outline of a window etc.)
+  let looksLikeCard = false;
+  let cardAspect = 0;
+  let centerOffset = 1;
+  if (bbox && fillRatio >= 0.10 && edgeCount > 80) {
+    const longSide = Math.max(bbox.w, bbox.h);
+    const shortSide = Math.max(1, Math.min(bbox.w, bbox.h));
+    cardAspect = longSide / shortSide;
+    const aspectOk = cardAspect >= SMART.CARD_ASPECT_MIN && cardAspect <= SMART.CARD_ASPECT_MAX;
+
+    const cx = bbox.x + bbox.w / 2;
+    const cy = bbox.y + bbox.h / 2;
+    const fcx = width / 2;
+    const fcy = height / 2;
+    const dx = (cx - fcx) / width;
+    const dy = (cy - fcy) / height;
+    centerOffset = Math.sqrt(dx*dx + dy*dy); // 0 = centered, 0.5 = corner
+    const centeredOk = centerOffset <= SMART.CARD_CENTER_TOLERANCE;
+
+    // Edge density relative to bbox area — a card has edges throughout (text, borders, image)
+    // not just on the outline. Random furniture has sparse interior edges.
+    const bboxArea = bbox.w * bbox.h;
+    const edgeDensity = edgeCount / Math.max(1, bboxArea);
+    const denseEnough = edgeDensity >= 0.04; // at least 4% of bbox pixels are strong edges
+
+    looksLikeCard = aspectOk && centeredOk && denseEnough;
+  }
+
+  return { sharpness, edgeCount, bbox, fillRatio, rotationDeg, looksLikeCard, cardAspect, centerOffset, frameW: width, frameH: height };
 }
 
 // -------- Card dimension estimator --------
@@ -2383,6 +2498,8 @@ function estimateCardDimensions(bbox, videoW, videoH) {
 function drawOverlay(ctx, displayW, displayH, analysis, dims) {
   ctx.clearRect(0, 0, displayW, displayH);
   if (!analysis.bbox) return;
+  // Don't draw any rectangle if it's clearly not a card-shaped object
+  if (!analysis.looksLikeCard && (analysis.cardAspect && (analysis.cardAspect < 1.1 || analysis.cardAspect > 2.0))) return;
   const sx = displayW / analysis.frameW;
   const sy = displayH / analysis.frameH;
   const x = analysis.bbox.x * sx;
@@ -2395,7 +2512,8 @@ function drawOverlay(ctx, displayW, displayH, analysis, dims) {
   const allSharp = arr.length >= SMART.STEADY_FRAMES && arr.every(s => s >= SMART.MIN_SHARPNESS);
   const goodFill = analysis.fillRatio >= SMART.MIN_FILL_RATIO && analysis.fillRatio <= SMART.MAX_FILL_RATIO;
   const lowTilt = Math.abs(analysis.rotationDeg || 0) <= 12;
-  const locked = allSharp && goodFill && lowTilt;
+  const isCard = !!analysis.looksLikeCard;
+  const locked = allSharp && goodFill && lowTilt && isCard;
 
   ctx.strokeStyle = locked ? 'rgba(52, 211, 153, 0.95)' : 'rgba(96, 165, 250, 0.7)';
   ctx.lineWidth = 3;
@@ -2469,6 +2587,8 @@ function tapToRescan() {
   state.smartCam.lastCardHash = null;
   state.smartCam.sharpnessHistory = [];
   state.smartCam.edgeHistory = [];
+  state.smartCam.cardShapeHistory = [];
+  state.smartCam.pendingHash = null;
   setCamStatus('Searching...', 'searching');
   setCamHint('Hold the next card in front of the camera');
   // Quick visual feedback
@@ -2580,6 +2700,7 @@ async function performAutoCapture() {
 
   state.smartCam.captureLockoutUntil = Date.now() + SMART.CAPTURE_LOCKOUT_MS;
   state.smartCam.sharpnessHistory = [];
+  state.smartCam.cardShapeHistory = [];
   renderCaptureSlots();
 }
 
@@ -2616,6 +2737,8 @@ async function manualCapture() {
     toast('Front replaced', 'success');
   }
   state.smartCam.captureLockoutUntil = Date.now() + SMART.CAPTURE_LOCKOUT_MS;
+  state.smartCam.sharpnessHistory = [];
+  state.smartCam.cardShapeHistory = [];
   renderCaptureSlots();
 }
 
