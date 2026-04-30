@@ -405,6 +405,28 @@
     display: flex; flex-direction: column; gap: 8px;
   }
   .camera-options .checkbox-wrap { font-size: 12px; }
+  .camera-controls {
+    margin-top: 10px; padding: 12px; background: var(--bg-elev);
+    border-radius: 6px; border: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cam-ctrl-row {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cam-ctrl-row label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-dim); font-weight: 600; margin: 0;
+  }
+  .cam-ctrl-val {
+    font-family: var(--font-mono); color: var(--gold);
+    font-weight: 700; text-transform: none; letter-spacing: 0;
+  }
+  .cam-ctrl-row input[type="range"] {
+    width: 100%; height: 28px;
+    background: var(--bg-card); border-radius: 4px;
+    accent-color: var(--gold);
+  }
 
   /* Capture flash */
   @keyframes capture-flash {
@@ -558,6 +580,7 @@
             <label class="checkbox-wrap"><input type="checkbox" id="opt-angle-scan" /> Scan parallel (capture at multiple angles)</label>
             <label class="checkbox-wrap"><input type="checkbox" id="opt-dedupe" checked /> Prevent duplicate captures</label>
           </div>
+          <div id="camera-controls" class="camera-controls" style="display:none"></div>
         </div>
 
         <div class="panel">
@@ -732,7 +755,7 @@
 
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-primary btn-block" id="btn-save">Save to Vault</button>
-          <button class="btn btn-secondary" id="btn-recalc-options" title="Refresh dropdown options based on current selections">↻ Recalc Options</button>
+          <button class="btn btn-secondary" id="btn-recalc-options" title="Refresh dropdown options and look up pricing based on current selections">↻ Recalc &amp; Price</button>
           <button class="btn btn-secondary" id="btn-reset-form">Reset Form</button>
         </div>
       </div>
@@ -887,6 +910,9 @@
       </div>
       <div id="proxy-guide" style="display:none; margin-top: 16px; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.7;">
         <div style="font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 10px; color: var(--gold);">Cloudflare Worker Setup (free tier)</div>
+        <div style="padding: 10px 12px; background: rgba(96, 165, 250, 0.08); border-left: 3px solid var(--blue); border-radius: 4px; margin-bottom: 14px; font-size: 12px;">
+          <strong style="color: var(--blue)">Updating an existing worker?</strong> The newer worker.js below adds a <span class="kb">/price</span> endpoint that uses Anthropic's web_search tool to fetch live sold-comp pricing. If your existing worker doesn't have this, replace its code with the new version, redeploy, and your "↻ Recalc &amp; Price" button will start working. Pricing lookups cost $0.01 per search on top of your normal API usage.
+        </div>
         <ol style="padding-left: 20px; color: var(--text-dim);">
           <li style="margin-bottom: 10px;">Sign in at <strong style="color: var(--gold)">dash.cloudflare.com</strong> (free account is fine)</li>
           <li style="margin-bottom: 10px;">Left sidebar → <strong>Compute (Workers)</strong> (may appear under "Compute &amp; AI" depending on your dashboard). Click <strong>Workers &amp; Pages</strong>.</li>
@@ -1754,8 +1780,116 @@ $('#fld-parallel').addEventListener('change', (e) => {
   }
 });
 
-// Recalc button
-$('#btn-recalc-options').addEventListener('click', () => recalcOptions({ toast: true }));
+// Recalc button — refreshes dropdowns AND fetches pricing if enough info present
+$('#btn-recalc-options').addEventListener('click', async () => {
+  recalcOptions({ toast: false });
+  await lookupPricing({ source: 'recalc-button' });
+});
+
+// -------- Pricing lookup (calls proxy /price endpoint) --------
+async function lookupPricing(opts = {}) {
+  const player = $('#fld-player').value.trim();
+  const year = parseInt($('#fld-year').value) || null;
+  const brand = readSelectValue('#fld-brand', '#fld-brand-other');
+  const setName = readSelectValue('#fld-set', '#fld-set-other');
+  const cardNumber = $('#fld-num').value.trim();
+  const parallel = readSelectValue('#fld-parallel', '#fld-parallel-other');
+  const serial = $('#fld-serial').value.trim();
+  const isAuto = $('#fld-auto').checked;
+  const isRelic = $('#fld-relic').checked;
+  const isRookie = $('#fld-rookie').checked;
+  const isGraded = $('#fld-graded').value === 'yes';
+  const gradingCo = $('#fld-grade-co').value;
+  const grade = $('#fld-grade').value.trim();
+  const team = $('#fld-team').value.trim();
+
+  // Need at minimum a player and a year to look anything up
+  if (!player || !year) {
+    if (opts.source === 'recalc-button') {
+      toast('Enter at least a player and year for pricing', 'error');
+      recalcOptions({ toast: true }); // still refresh options
+    }
+    return;
+  }
+
+  // Need proxy URL configured
+  if (!ApiConfig.proxyUrl) {
+    if (opts.source === 'recalc-button') {
+      toast('Set the AI proxy URL in Settings to enable pricing', 'error');
+      recalcOptions({ toast: true });
+    }
+    return;
+  }
+
+  // Build a human-readable card description for Claude to search on
+  const desc = [
+    year,
+    brand,
+    setName,
+    player,
+    team ? `(${team})` : '',
+    cardNumber ? `card #${cardNumber}` : '',
+    parallel ? `${parallel} parallel` : '',
+    serial ? `serial ${serial}` : '',
+    isRookie ? 'rookie card' : '',
+    isAuto ? 'autograph' : '',
+    isRelic ? 'relic/patch' : '',
+    isGraded ? `graded ${gradingCo} ${grade}` : 'raw/ungraded'
+  ].filter(Boolean).join(' ');
+
+  // Status UI in the AI status pill
+  const statusEl = $('#ai-status');
+  statusEl.className = 'ai-status show';
+  statusEl.textContent = '💲 Looking up recent sold comps...';
+
+  try {
+    const url = ApiConfig.proxyUrl.replace(/\/+$/, '') + '/price';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cardDescription: desc,
+        model: ApiConfig.model
+      })
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Proxy ${res.status}${errText ? ': ' + errText.slice(0, 120) : ''}`);
+    }
+    const data = await res.json();
+
+    // Claude responds with a mix of text + tool_use + tool_result blocks; concat the text
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    if (firstBrace < 0 || lastBrace < 0) throw new Error('No JSON in response');
+    const parsed = JSON.parse(clean.slice(firstBrace, lastBrace + 1));
+
+    if (parsed.salesFound > 0 && parsed.rawPriceMedian > 0) {
+      // Fill in raw price field with the median
+      $('#fld-rawprice').value = Number(parsed.rawPriceMedian).toFixed(2);
+      // Recalc options first to keep dropdowns fresh
+      recalcOptions();
+      const conf = parsed.confidence || 'low';
+      const range = (parsed.rawPriceLow && parsed.rawPriceHigh)
+        ? ` (range $${parsed.rawPriceLow.toFixed(2)}–$${parsed.rawPriceHigh.toFixed(2)})`
+        : '';
+      statusEl.className = 'ai-status show success';
+      statusEl.textContent = `💲 Median raw price: $${Number(parsed.rawPriceMedian).toFixed(2)}${range} · ${parsed.salesFound} sale${parsed.salesFound===1?'':'s'} · confidence: ${conf}`;
+      toast(`Raw price set to $${Number(parsed.rawPriceMedian).toFixed(2)}`, 'success');
+    } else {
+      recalcOptions();
+      statusEl.className = 'ai-status show';
+      statusEl.textContent = `💲 No clear comps found. ${parsed.summary || 'Try entering more details (set, parallel, etc.)'}`;
+    }
+  } catch (err) {
+    console.error('Pricing lookup failed:', err);
+    recalcOptions();
+    statusEl.className = 'ai-status show error';
+    statusEl.textContent = `⚠️ Pricing lookup failed: ${err.message}`;
+  }
+}
 
 // -------- Custom fields renderer --------
 function renderCustomFields(values = {}) {
@@ -1810,11 +1944,55 @@ let _tapToRescanInstalled = false;
 async function startCamera() {
   try {
     if (state.stream) stopCamera();
-    const constraints = { video: { facingMode: state.currentFacing, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+    // Request the highest practical resolution for modern flagship phones
+    // (S26 Ultra has 200MP, but we don't need huge frames — 4K is plenty for cards
+    //  and saves CPU for the detection loop).
+    const constraints = {
+      video: {
+        facingMode: state.currentFacing,
+        width: { ideal: 3840, min: 1280 },
+        height: { ideal: 2160, min: 720 },
+        frameRate: { ideal: 30, min: 15 },
+        // Hint to the browser to prefer the rear main camera (not ultrawide/tele)
+        // by aiming for a moderate field of view; high-end Android browsers honor this.
+        aspectRatio: { ideal: 16 / 9 }
+      },
+      audio: false
+    };
     state.stream = await navigator.mediaDevices.getUserMedia(constraints);
     const video = $('#camera-video');
     video.srcObject = state.stream;
     await video.play().catch(() => {});
+
+    // Try to apply continuous autofocus and capture device capabilities.
+    // These constraints are silently ignored where unsupported (iOS Safari).
+    const videoTrack = state.stream.getVideoTracks()[0];
+    state.smartCam.videoTrack = videoTrack;
+    state.smartCam.trackCapabilities = null;
+    if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
+      try {
+        const caps = videoTrack.getCapabilities();
+        state.smartCam.trackCapabilities = caps;
+        // Build an "advanced" constraint with whatever this device supports
+        const advanced = [];
+        if (caps.focusMode && caps.focusMode.includes('continuous')) {
+          advanced.push({ focusMode: 'continuous' });
+        }
+        if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+          advanced.push({ exposureMode: 'continuous' });
+        }
+        if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) {
+          advanced.push({ whiteBalanceMode: 'continuous' });
+        }
+        if (advanced.length) {
+          await videoTrack.applyConstraints({ advanced }).catch(() => {});
+        }
+        // Wire up the camera-controls UI based on what the hardware exposes
+        renderCameraControls(caps);
+      } catch (e) {
+        console.log('Track capabilities unavailable:', e);
+      }
+    }
 
     $('#btn-cam-start').disabled = true;
     $('#btn-cam-flip').disabled = false;
@@ -1830,11 +2008,69 @@ async function startCamera() {
     setCamHint('Hold a sports card in front of the camera');
 
     startDetectionLoop();
-    toast('Camera started', 'success');
+    const settings = videoTrack && videoTrack.getSettings ? videoTrack.getSettings() : null;
+    if (settings && settings.width) {
+      toast(`Camera started (${settings.width}×${settings.height})`, 'success');
+    } else {
+      toast('Camera started', 'success');
+    }
   } catch (err) {
     toast('Camera access denied or unavailable', 'error');
     console.error(err);
   }
+}
+
+// -------- Camera controls (zoom, torch) — render based on device capabilities --------
+function renderCameraControls(caps) {
+  const wrap = $('#camera-controls');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  let any = false;
+
+  // Zoom slider
+  if (caps.zoom) {
+    any = true;
+    const z = caps.zoom;
+    const minZ = z.min ?? 1;
+    const maxZ = z.max ?? 1;
+    const stepZ = z.step ?? 0.1;
+    const initZ = state.smartCam.videoTrack?.getSettings()?.zoom ?? minZ;
+    wrap.insertAdjacentHTML('beforeend', `
+      <div class="cam-ctrl-row">
+        <label>Zoom <span class="cam-ctrl-val" id="zoom-val">${initZ.toFixed(1)}×</span></label>
+        <input type="range" id="cam-zoom" min="${minZ}" max="${maxZ}" step="${stepZ}" value="${initZ}" />
+      </div>
+    `);
+    $('#cam-zoom').addEventListener('input', async (e) => {
+      const v = parseFloat(e.target.value);
+      $('#zoom-val').textContent = v.toFixed(1) + '×';
+      try { await state.smartCam.videoTrack.applyConstraints({ advanced: [{ zoom: v }] }); }
+      catch (err) { console.log('zoom apply failed:', err); }
+    });
+  }
+
+  // Torch toggle
+  if (caps.torch) {
+    any = true;
+    wrap.insertAdjacentHTML('beforeend', `
+      <div class="cam-ctrl-row">
+        <button class="btn btn-secondary" id="cam-torch" type="button">🔦 Torch Off</button>
+      </div>
+    `);
+    let on = false;
+    $('#cam-torch').addEventListener('click', async () => {
+      on = !on;
+      try {
+        await state.smartCam.videoTrack.applyConstraints({ advanced: [{ torch: on }] });
+        $('#cam-torch').textContent = on ? '🔦 Torch On' : '🔦 Torch Off';
+      } catch (err) {
+        toast('Torch unavailable', 'error');
+        on = !on;
+      }
+    });
+  }
+
+  wrap.style.display = any ? '' : 'none';
 }
 
 function stopCamera() {
@@ -3296,9 +3532,14 @@ $('#btn-wipe').addEventListener('click', async () => {
 });
 
 // -------- Settings / Identifiers --------
-const WORKER_CODE = `// Card Vault — Anthropic API Proxy
+const WORKER_CODE = `// Card Vault — Anthropic API Proxy (with price lookup)
 // Deploy this to a Cloudflare Worker. Set ANTHROPIC_API_KEY as a secret.
 // Optionally set ALLOWED_ORIGIN to your GitHub Pages URL to restrict access.
+//
+// Endpoints:
+//   GET  /                 → health check
+//   POST /                 → forward as-is to /v1/messages (used by AI scan)
+//   POST /price            → run a card-pricing query with Claude + web_search
 
 export default {
   async fetch(request, env) {
@@ -3308,31 +3549,31 @@ export default {
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': corsOrigin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
       'Vary': 'Origin'
     };
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // Simple GET health check for "Test Connection" button
+    if (env.ALLOWED_ORIGIN && env.ALLOWED_ORIGIN !== '*' && origin && origin !== env.ALLOWED_ORIGIN) {
+      return new Response('Forbidden origin', { status: 403, headers: corsHeaders });
+    }
+
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\\/+$/, '') || '/';
+
     if (request.method === 'GET') {
-      return new Response(JSON.stringify({ ok: true, service: 'card-vault-proxy' }), {
+      return new Response(JSON.stringify({ ok: true, service: 'card-vault-proxy', endpoints: ['/', '/price'] }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405, headers: corsHeaders });
-    }
-
-    // Origin check (if ALLOWED_ORIGIN is set and not *)
-    if (env.ALLOWED_ORIGIN && env.ALLOWED_ORIGIN !== '*' && origin !== env.ALLOWED_ORIGIN) {
-      return new Response('Forbidden origin', { status: 403, headers: corsHeaders });
     }
 
     if (!env.ANTHROPIC_API_KEY) {
@@ -3342,15 +3583,47 @@ export default {
     }
 
     let body;
-    try {
-      body = await request.json();
-    } catch {
+    try { body = await request.json(); }
+    catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
         status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
-    // Forward to Anthropic API
+    // /price → enrich with web_search tool and pricing system prompt
+    if (path === '/price') {
+      const cardDesc = body.cardDescription || '';
+      const model = body.model || 'claude-sonnet-4-6';
+      if (!cardDesc) {
+        return new Response(JSON.stringify({ error: 'cardDescription required' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+      const apiBody = {
+        model,
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
+        system: 'You are a sports card pricing analyst. Given a card description, search the web for recent sold comps (eBay sold listings, 130point.com, PSA Auction Prices, etc.) for that card in raw/ungraded near-mint condition unless a grade is specified. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs). If you cannot find enough comps, return all numeric fields as 0 and explain in summary. Always prefer the most recent 30-90 days of sales. Use raw/ungraded prices unless the user specifies a grade.',
+        messages: [{ role: 'user', content: 'Find recent sold comps and estimate the raw market price for this sports card:\\n\\n' + cardDesc }]
+      };
+
+      const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(apiBody)
+      });
+      const data = await apiRes.text();
+      return new Response(data, {
+        status: apiRes.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Default: forward to /v1/messages (used by AI scan)
     const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -3360,7 +3633,6 @@ export default {
       },
       body: JSON.stringify(body)
     });
-
     const data = await apiRes.text();
     return new Response(data, {
       status: apiRes.status,
