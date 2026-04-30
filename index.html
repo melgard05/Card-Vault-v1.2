@@ -1926,8 +1926,8 @@ function renderCustomFields(values = {}) {
 // -------- Smart Camera --------
 const SMART = {
   // Detection thresholds
-  MIN_FILL_RATIO: 0.18,        // card edges fill at least 18% of frame (lets you hold phone closer)
-  MAX_FILL_RATIO: 0.92,        // and not so much we're too close
+  MIN_FILL_RATIO: 0.10,        // card edges fill at least 10% of frame (works at arm's length)
+  MAX_FILL_RATIO: 0.85,        // and not so much we're too close
   MIN_SHARPNESS: 22,           // Laplacian variance threshold for sharpness
   STEADY_FRAMES: 5,            // need N consecutive good frames to lock
   STEADY_VARIANCE: 0.22,       // sharpness variance must be below this (relative)
@@ -2355,33 +2355,88 @@ function analyzeFrame(imageData) {
   }
   const sharpness = Math.sqrt(lapM2 / Math.max(1, lapCount));
 
-  // 2) Edge density + bbox + collect edge points for rotation/dimension analysis
-  let minX = width, minY = height, maxX = 0, maxY = 0, edgeCount = 0;
+  // 2) Edge density + bbox via grid-cluster detection
+  //    Instead of "min/max of all strong edges" (which expands to the whole frame
+  //    whenever there's any edge in a corner — lamp, table, window, etc.),
+  //    we divide the frame into a coarse grid, find the densest cluster of edge cells,
+  //    and use that cluster's bounding box. This focuses on the card, not the scene.
+  const GRID_COLS = 16, GRID_ROWS = 12;
+  const cellW = width / GRID_COLS;
+  const cellH = height / GRID_ROWS;
+  const gridCounts = new Array(GRID_COLS * GRID_ROWS).fill(0);
+  let edgeCount = 0;
   const threshold = 35;
-  // For angle estimation: collect a downsampled set of strong edge points
   const edgePts = [];
-  const stride = 2; // sample every 2nd pixel for speed
-  for (let y = 1; y < height-1; y += stride) {
-    for (let x = 1; x < width-1; x += stride) {
-      const i = y*width + x;
+  const stride = 2;
+  for (let y = 1; y < height - 1; y += stride) {
+    for (let x = 1; x < width - 1; x += stride) {
+      const i = y * width + x;
       const gx = gray[i+1] - gray[i-1];
       const gy = gray[i+width] - gray[i-width];
       const mag = Math.abs(gx) + Math.abs(gy);
       if (mag > threshold) {
         edgeCount++;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
+        const gc = Math.min(GRID_COLS - 1, Math.floor(x / cellW));
+        const gr = Math.min(GRID_ROWS - 1, Math.floor(y / cellH));
+        gridCounts[gr * GRID_COLS + gc]++;
         if (edgePts.length < 1500) edgePts.push([x, y, gx, gy]);
       }
     }
   }
+
+  // Determine "high density" threshold: cells with edge count above the mean+small margin
+  const totalCells = GRID_COLS * GRID_ROWS;
+  const meanCount = edgeCount / totalCells;
+  // Card cells should have meaningfully more edges than scene clutter
+  const cellThreshold = Math.max(meanCount * 1.4, 6);
+
+  // Mark dense cells
+  const dense = gridCounts.map(c => c >= cellThreshold);
+
+  // Find the largest connected component of dense cells (4-connectivity)
   let bbox = null, fillRatio = 0;
-  if (edgeCount > 30 && maxX > minX && maxY > minY) {
-    const w = maxX - minX, h = maxY - minY;
-    bbox = { x: minX, y: minY, w, h };
-    fillRatio = (w * h) / (width * height);
+  if (edgeCount > 60) {
+    const visited = new Array(totalCells).fill(false);
+    let bestCluster = null;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const idx = r * GRID_COLS + c;
+        if (!dense[idx] || visited[idx]) continue;
+        // BFS
+        const stack = [idx];
+        const cluster = [];
+        let cMinX = c, cMaxX = c, cMinY = r, cMaxY = r;
+        while (stack.length) {
+          const cur = stack.pop();
+          if (visited[cur]) continue;
+          visited[cur] = true;
+          cluster.push(cur);
+          const cr = Math.floor(cur / GRID_COLS);
+          const cc = cur % GRID_COLS;
+          if (cc < cMinX) cMinX = cc;
+          if (cc > cMaxX) cMaxX = cc;
+          if (cr < cMinY) cMinY = cr;
+          if (cr > cMaxY) cMaxY = cr;
+          // neighbors
+          if (cc > 0 && dense[cur-1] && !visited[cur-1]) stack.push(cur-1);
+          if (cc < GRID_COLS-1 && dense[cur+1] && !visited[cur+1]) stack.push(cur+1);
+          if (cr > 0 && dense[cur-GRID_COLS] && !visited[cur-GRID_COLS]) stack.push(cur-GRID_COLS);
+          if (cr < GRID_ROWS-1 && dense[cur+GRID_COLS] && !visited[cur+GRID_COLS]) stack.push(cur+GRID_COLS);
+        }
+        if (!bestCluster || cluster.length > bestCluster.size) {
+          bestCluster = { size: cluster.length, minX: cMinX, maxX: cMaxX, minY: cMinY, maxY: cMaxY };
+        }
+      }
+    }
+    if (bestCluster && bestCluster.size >= 4) {
+      // Convert grid coords to pixel coords
+      const x = bestCluster.minX * cellW;
+      const y = bestCluster.minY * cellH;
+      const w = (bestCluster.maxX - bestCluster.minX + 1) * cellW;
+      const h = (bestCluster.maxY - bestCluster.minY + 1) * cellH;
+      bbox = { x, y, w, h };
+      fillRatio = (w * h) / (width * height);
+    }
   }
 
   // 3) Rotation angle estimation via Hough-style histogram of edge gradient orientations
@@ -3726,8 +3781,8 @@ export default {
         model,
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-        system: 'You are a sports card pricing analyst. Given a card description, search the web for recent sold comps (eBay sold listings, 130point.com, PSA Auction Prices, etc.) for that card in raw/ungraded near-mint condition unless a grade is specified. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs). If you cannot find enough comps, return all numeric fields as 0 and explain in summary. Always prefer the most recent 30-90 days of sales. Use raw/ungraded prices unless the user specifies a grade.',
-        messages: [{ role: 'user', content: 'Find recent sold comps and estimate the raw market price for this sports card:\\n\\n' + cardDesc }]
+        system: 'You are a sports card pricing analyst. Search the web for RECENT SOLD comps (not asking prices) and estimate the price. CRITICAL RULES: (1) RAW means UNGRADED — exclude PSA/BGS/SGC/CGC slabbed sales unless the user specified a grade. (2) Only SOLD prices, never asking prices — prefer eBay sold filter (LH_Sold=1), 130point.com, PSA APR. (3) EXCLUDE OUTLIERS — drop highest and lowest before computing median; ignore any sale >3x the next-highest. (4) EXACT MATCH on player + year + brand + set + parallel + attributes (auto/relic/serial). Do not mix base cards with parallels or autos. (5) Use the MEDIAN, not the average — a couple of pristine copies skew average high. (6) Confidence: high = 5+ matching comps in 60 days; medium = 3-4; low = <3. If you cannot find enough exact-match sold comps, return all numbers as 0 and explain — do NOT guess. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs).',
+        messages: [{ role: 'user', content: 'Find recent SOLD comps and estimate the price for this sports card. Be conservative — bias toward the median of clean sold comps, not the high end:\\n\\n' + cardDesc }]
       };
 
       const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
