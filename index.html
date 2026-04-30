@@ -357,6 +357,9 @@
     overflow: hidden;
     aspect-ratio: 4 / 3;
     border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .camera-stage video {
     width: 100%; height: 100%; object-fit: cover; display: block;
@@ -1096,6 +1099,8 @@ const state = {
     angleScanActive: false,  // currently capturing angle samples
     angleScanStartedAt: 0,
     nextSlot: 'front',       // 'front' | 'back' for next auto capture
+    lastAnalysis: null,      // most recent analyzeFrame() output
+    lastCapturedMeta: null,  // analysis snapshot at the moment of front capture
     options: {
       autoCapture: true,
       angleScan: false,
@@ -1782,18 +1787,25 @@ function renderCustomFields(values = {}) {
 // -------- Smart Camera --------
 const SMART = {
   // Detection thresholds
-  MIN_FILL_RATIO: 0.35,        // card edges should fill at least this much of frame
-  MAX_FILL_RATIO: 0.92,        // and not so much we're too close
-  MIN_SHARPNESS: 25,           // Laplacian variance threshold for sharpness
-  STEADY_FRAMES: 6,            // need N consecutive good frames to lock
-  STEADY_VARIANCE: 0.20,       // sharpness variance must be below this (relative)
-  CAPTURE_LOCKOUT_MS: 2200,    // suppress new captures for N ms after one
+  MIN_FILL_RATIO: 0.30,        // card edges should fill at least this much of frame
+  MAX_FILL_RATIO: 0.95,        // and not so much we're too close
+  MIN_SHARPNESS: 22,           // Laplacian variance threshold for sharpness
+  STEADY_FRAMES: 4,            // need N consecutive good frames to lock (lower = faster)
+  STEADY_VARIANCE: 0.25,       // sharpness variance must be below this (relative)
+  CAPTURE_LOCKOUT_MS: 1500,    // suppress new captures for N ms after one
   HASH_SIZE: 8,                // perceptual hash grid (8x8 = 64-bit)
   HASH_DUPLICATE_DIST: 8,      // hamming distance threshold for "same card"
   ANGLE_SAMPLE_COUNT: 5,       // how many samples to collect for parallel detection
-  ANGLE_SAMPLE_INTERVAL_MS: 600,
-  ANALYSIS_DOWNSCALE: 160      // detection runs at this width for speed
+  ANGLE_SAMPLE_INTERVAL_MS: 500,
+  ANALYSIS_DOWNSCALE: 200,     // detection runs at this width for speed
+  ANALYSIS_EVERY_N_FRAMES: 2,  // analyze every Nth frame (lower = more responsive)
+  // Standard sports card physical dimensions (inches)
+  CARD_W_INCH: 2.5,
+  CARD_H_INCH: 3.5
 };
+
+// Tap to rescan
+let _tapToRescanInstalled = false;
 
 async function startCamera() {
   try {
@@ -1881,6 +1893,13 @@ function startDetectionLoop() {
   let lastAngleSampleAt = 0;
   let frameCounter = 0;
 
+  // Install tap-to-rescan once per camera-stage element
+  const stage = document.querySelector('.camera-stage');
+  if (stage && !_tapToRescanInstalled) {
+    stage.addEventListener('click', tapToRescan);
+    _tapToRescanInstalled = true;
+  }
+
   const tick = () => {
     if (!state.smartCam.detecting) return;
     state.smartCam.rafId = requestAnimationFrame(tick);
@@ -1893,20 +1912,23 @@ function startDetectionLoop() {
       overlay.height = video.clientHeight;
     }
 
+    // Only do heavy analysis every Nth frame (lower N = more responsive)
+    if (frameCounter % SMART.ANALYSIS_EVERY_N_FRAMES !== 0) return;
+
     // Run detection at downscaled resolution
     const aspect = video.videoWidth / video.videoHeight;
     det.width = SMART.ANALYSIS_DOWNSCALE;
     det.height = Math.round(SMART.ANALYSIS_DOWNSCALE / aspect);
     detCtx.drawImage(video, 0, 0, det.width, det.height);
 
-    // Only do heavy analysis every 3rd frame
-    if (frameCounter % 3 !== 0) return;
-
     const imageData = detCtx.getImageData(0, 0, det.width, det.height);
     const analysis = analyzeFrame(imageData);
+    // Calculate physical dimensions and stash on smartCam state for capture-time use
+    const dims = estimateCardDimensions(analysis.bbox, video.videoWidth, video.videoHeight);
+    state.smartCam.lastAnalysis = { ...analysis, dims };
 
-    // Draw overlay
-    drawOverlay(overlayCtx, overlay.width, overlay.height, analysis);
+    // Draw overlay (now with angle/size info)
+    drawOverlay(overlayCtx, overlay.width, overlay.height, analysis, dims);
 
     // Track history
     state.smartCam.sharpnessHistory.push(analysis.sharpness);
@@ -1923,7 +1945,6 @@ function startDetectionLoop() {
     // Angle scan in progress
     if (state.smartCam.angleScanActive) {
       const samples = state.smartCam.angleSamples.length;
-      const remaining = SMART.ANGLE_SAMPLE_COUNT - samples;
       setCamStatus(`Scanning angles ${samples}/${SMART.ANGLE_SAMPLE_COUNT}`, 'searching');
       setCamHint('Slowly tilt the card side to side');
       if (now - lastAngleSampleAt > SMART.ANGLE_SAMPLE_INTERVAL_MS && analysis.fillRatio > SMART.MIN_FILL_RATIO) {
@@ -1938,6 +1959,7 @@ function startDetectionLoop() {
 
     if (inLockout) {
       setCamStatus(state.smartCam.nextSlot === 'back' ? 'Flip to back if desired' : 'Captured!', 'locked');
+      setCamHint('Tap screen to scan another card');
       return;
     }
 
@@ -1954,6 +1976,12 @@ function startDetectionLoop() {
     if (analysis.sharpness < SMART.MIN_SHARPNESS) {
       setCamStatus('Focusing...', 'searching');
       setCamHint('Hold steady to allow autofocus');
+      return;
+    }
+    // If significantly tilted, prompt the user to straighten
+    if (Math.abs(analysis.rotationDeg) > 12) {
+      setCamStatus(`Tilted ${analysis.rotationDeg.toFixed(0)}°`, 'searching');
+      setCamHint('Straighten the card slightly');
       return;
     }
 
@@ -2008,12 +2036,14 @@ function analyzeFrame(imageData) {
   }
   const sharpness = Math.sqrt(lapM2 / Math.max(1, lapCount));
 
-  // 2) Edge density / fill ratio: count strong-gradient pixels and where they cluster
-  // Use Sobel-like edge magnitude; estimate bounding region of edges
+  // 2) Edge density + bbox + collect edge points for rotation/dimension analysis
   let minX = width, minY = height, maxX = 0, maxY = 0, edgeCount = 0;
   const threshold = 35;
-  for (let y = 1; y < height-1; y++) {
-    for (let x = 1; x < width-1; x++) {
+  // For angle estimation: collect a downsampled set of strong edge points
+  const edgePts = [];
+  const stride = 2; // sample every 2nd pixel for speed
+  for (let y = 1; y < height-1; y += stride) {
+    for (let x = 1; x < width-1; x += stride) {
       const i = y*width + x;
       const gx = gray[i+1] - gray[i-1];
       const gy = gray[i+width] - gray[i-width];
@@ -2024,6 +2054,7 @@ function analyzeFrame(imageData) {
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
         if (y > maxY) maxY = y;
+        if (edgePts.length < 1500) edgePts.push([x, y, gx, gy]);
       }
     }
   }
@@ -2034,10 +2065,86 @@ function analyzeFrame(imageData) {
     fillRatio = (w * h) / (width * height);
   }
 
-  return { sharpness, edgeCount, bbox, fillRatio, frameW: width, frameH: height };
+  // 3) Rotation angle estimation via Hough-style histogram of edge gradient orientations
+  // For a rectangular card, gradients are either ~horizontal (top/bottom edges) or ~vertical (left/right edges).
+  // The card's tilt is the offset of the dominant orientations from 0/90.
+  let rotationDeg = 0;
+  if (edgePts.length > 50) {
+    // Histogram bins: 0..180 degrees in 2-degree increments
+    const BIN_W = 2;
+    const NUM_BINS = 90;
+    const bins = new Array(NUM_BINS).fill(0);
+    for (const [, , gx, gy] of edgePts) {
+      const mag = Math.abs(gx) + Math.abs(gy);
+      // Edge direction is perpendicular to gradient direction.
+      // We care about modulo 180 (a horizontal edge has gradient pointing up OR down, same line).
+      let theta = Math.atan2(gy, gx) * 180 / Math.PI; // -180..180
+      // Edge orientation = gradient + 90 (perpendicular), normalize to 0..180
+      let edgeAngle = (theta + 90 + 360) % 180;
+      const bin = Math.floor(edgeAngle / BIN_W) % NUM_BINS;
+      bins[bin] += mag;
+    }
+    // Find the strongest edge orientation (within 0..180)
+    let bestBin = 0, bestVal = 0;
+    for (let i = 0; i < NUM_BINS; i++) {
+      if (bins[i] > bestVal) { bestVal = bins[i]; bestBin = i; }
+    }
+    const bestAngle = bestBin * BIN_W; // 0..178
+    // Card tilt: how far is the dominant edge from 0° (horizontal) or 90° (vertical)?
+    // Take the smaller of (bestAngle % 90) and (90 - bestAngle % 90).
+    const m = bestAngle % 90;
+    rotationDeg = m > 45 ? m - 90 : m;
+  }
+
+  return { sharpness, edgeCount, bbox, fillRatio, rotationDeg, frameW: width, frameH: height };
 }
 
-function drawOverlay(ctx, displayW, displayH, analysis) {
+// -------- Card dimension estimator --------
+// Takes the on-screen bbox and the underlying video frame size, and returns
+// physical dimensions in mm assuming a portrait standard 2.5×3.5" card.
+// Returns also "isPortrait" detection and a sport-card-shape sanity check.
+function estimateCardDimensions(bbox, videoW, videoH) {
+  if (!bbox || bbox.w <= 0 || bbox.h <= 0) return null;
+  // Map detection-canvas bbox to video coords (though they're proportional)
+  const scaleX = videoW / SMART.ANALYSIS_DOWNSCALE;
+  // detection canvas height is proportional, so the scaling preserves ratios
+  const wPx = bbox.w * scaleX;
+  const hPx = bbox.h * scaleX;
+  const isPortrait = hPx >= wPx;
+  const longSide = Math.max(wPx, hPx);
+  const shortSide = Math.min(wPx, hPx);
+  const aspect = longSide / shortSide;
+
+  // Standard card aspect = 3.5/2.5 = 1.4
+  // Tobacco/mini cards are taller (e.g., 1996 Topps Mini, Allen & Ginter Mini, T206 ~1.45)
+  // Some oversized cards are squarer (~1.3-1.35)
+  const standardAspect = SMART.CARD_H_INCH / SMART.CARD_W_INCH; // 1.4
+  const aspectDelta = aspect - standardAspect;
+  const aspectMatchesStandard = Math.abs(aspectDelta) < 0.10;
+
+  // We can't measure actual physical mm without a calibration object,
+  // BUT we can express dimensions as a percentage of a standard card.
+  // Assume the card IS standard size and solve for "implied scale" — useful for
+  // detecting oversized vs mini if the user gives us context, but mostly we just
+  // surface the aspect ratio + suggested format.
+  const inferredFormat =
+    aspect < 1.30 ? 'oversized/squarer (e.g., 1950s Bowman, oversized parallel)' :
+    aspect < 1.36 ? 'slightly squarer than standard' :
+    aspectMatchesStandard ? 'standard 2.5×3.5"' :
+    aspect < 1.50 ? 'taller than standard (mini, tobacco-era, T206-style)' :
+    'unusually tall';
+
+  return {
+    widthPx: Math.round(wPx),
+    heightPx: Math.round(hPx),
+    aspectRatio: aspect,
+    aspectMatchesStandard,
+    isPortrait,
+    inferredFormat
+  };
+}
+
+function drawOverlay(ctx, displayW, displayH, analysis, dims) {
   ctx.clearRect(0, 0, displayW, displayH);
   if (!analysis.bbox) return;
   const sx = displayW / analysis.frameW;
@@ -2051,7 +2158,8 @@ function drawOverlay(ctx, displayW, displayH, analysis) {
   const arr = state.smartCam.sharpnessHistory;
   const allSharp = arr.length >= SMART.STEADY_FRAMES && arr.every(s => s >= SMART.MIN_SHARPNESS);
   const goodFill = analysis.fillRatio >= SMART.MIN_FILL_RATIO && analysis.fillRatio <= SMART.MAX_FILL_RATIO;
-  const locked = allSharp && goodFill;
+  const lowTilt = Math.abs(analysis.rotationDeg || 0) <= 12;
+  const locked = allSharp && goodFill && lowTilt;
 
   ctx.strokeStyle = locked ? 'rgba(52, 211, 153, 0.95)' : 'rgba(96, 165, 250, 0.7)';
   ctx.lineWidth = 3;
@@ -2068,6 +2176,71 @@ function drawOverlay(ctx, displayW, displayH, analysis) {
     ctx.moveTo(x+w, y+h-c); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-c, y+h);
     ctx.moveTo(x+c, y+h); ctx.lineTo(x, y+h); ctx.lineTo(x, y+h-c);
     ctx.stroke();
+  }
+
+  // HUD overlay: tilt indicator + dimension/aspect
+  ctx.setLineDash([]);
+  ctx.font = '600 11px JetBrains Mono, monospace';
+  const hudLines = [];
+  if (analysis.rotationDeg != null) {
+    const t = analysis.rotationDeg;
+    const tiltLabel = Math.abs(t) <= 1.5 ? '0°' : `${t > 0 ? '+' : ''}${t.toFixed(1)}°`;
+    hudLines.push(`TILT ${tiltLabel}`);
+  }
+  if (dims) {
+    hudLines.push(`AR ${dims.aspectRatio.toFixed(2)}`);
+    if (!dims.aspectMatchesStandard) {
+      hudLines.push(dims.inferredFormat.split(/[(,]/)[0].trim().toUpperCase());
+    }
+  }
+  if (hudLines.length) {
+    const padX = 8, padY = 5, lh = 15;
+    const boxW = Math.max(...hudLines.map(l => ctx.measureText(l).width)) + padX * 2;
+    const boxH = hudLines.length * lh + padY * 2;
+    const bx = x + w - boxW - 6;
+    const by = y + 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.fillStyle = locked ? 'rgba(52, 211, 153, 0.95)' : 'rgba(212, 168, 85, 0.9)';
+    hudLines.forEach((line, i) => {
+      ctx.fillText(line, bx + padX, by + padY + lh - 3 + i * lh);
+    });
+  }
+
+  // Tilt arc indicator at top-left of bbox
+  if (analysis.rotationDeg != null && Math.abs(analysis.rotationDeg) > 0.5) {
+    const cx = x + 16, cy = y + 16;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    const ang = analysis.rotationDeg * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(ang - Math.PI/2) * 9, cy + Math.sin(ang - Math.PI/2) * 9);
+    ctx.strokeStyle = Math.abs(analysis.rotationDeg) <= 12 ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+// -------- Tap to rescan --------
+function tapToRescan() {
+  if (!state.smartCam.detecting) return;
+  // Reset lock-related state so the loop starts looking for a fresh card immediately
+  state.smartCam.captureLockoutUntil = 0;
+  state.smartCam.lastCardHash = null;
+  state.smartCam.sharpnessHistory = [];
+  state.smartCam.edgeHistory = [];
+  setCamStatus('Searching...', 'searching');
+  setCamHint('Hold the next card in front of the camera');
+  // Quick visual feedback
+  const stage = document.querySelector('.camera-stage');
+  if (stage) {
+    stage.style.transition = 'box-shadow 0.2s';
+    stage.style.boxShadow = '0 0 0 3px rgba(212, 168, 85, 0.6)';
+    setTimeout(() => { stage.style.boxShadow = ''; }, 350);
   }
 }
 
@@ -2145,6 +2318,13 @@ async function performAutoCapture() {
   if (state.smartCam.nextSlot === 'front' || !state.capturedFront) {
     state.capturedFront = data;
     state.smartCam.nextSlot = 'back';
+    // Snapshot the analysis at the moment of front capture (for AI context)
+    state.smartCam.lastCapturedMeta = state.smartCam.lastAnalysis ? {
+      rotationDeg: state.smartCam.lastAnalysis.rotationDeg,
+      sharpness: state.smartCam.lastAnalysis.sharpness,
+      fillRatio: state.smartCam.lastAnalysis.fillRatio,
+      dims: state.smartCam.lastAnalysis.dims
+    } : null;
 
     if (state.smartCam.options.angleScan) {
       // Begin angle scan
@@ -2175,9 +2355,18 @@ async function manualCapture() {
   const hash = await perceptualHash(data);
   state.smartCam.lastCardHash = hash;
 
+  // Snapshot analysis if available (for AI context on whatever side this is)
+  const metaSnapshot = state.smartCam.lastAnalysis ? {
+    rotationDeg: state.smartCam.lastAnalysis.rotationDeg,
+    sharpness: state.smartCam.lastAnalysis.sharpness,
+    fillRatio: state.smartCam.lastAnalysis.fillRatio,
+    dims: state.smartCam.lastAnalysis.dims
+  } : null;
+
   if (!state.capturedFront) {
     state.capturedFront = data;
     state.smartCam.nextSlot = 'back';
+    state.smartCam.lastCapturedMeta = metaSnapshot;
     toast('Front captured', 'success');
   } else if (!state.capturedBack) {
     state.capturedBack = data;
@@ -2187,6 +2376,7 @@ async function manualCapture() {
     state.capturedFront = data;
     state.capturedBack = null;
     state.smartCam.nextSlot = 'back';
+    state.smartCam.lastCapturedMeta = metaSnapshot;
     toast('Front replaced', 'success');
   }
   state.smartCam.captureLockoutUntil = Date.now() + SMART.CAPTURE_LOCKOUT_MS;
@@ -2337,6 +2527,7 @@ $('#btn-clear-img').addEventListener('click', () => {
   state.capturedBack = null;
   state.smartCam.angleSamples = [];
   state.smartCam.lastCardHash = null;
+  state.smartCam.lastCapturedMeta = null;
   state.smartCam.nextSlot = 'front';
   $('#angle-samples-section').style.display = 'none';
   $('#angle-samples').innerHTML = '';
@@ -2424,9 +2615,30 @@ function buildAIPrompt() {
     ? `,\n  "customFields": {\n${customLines.join(',\n')}\n  }`
     : '';
 
+  // Append camera-measurement context if available
+  let measurementBlock = '';
+  const meta = state.smartCam.lastCapturedMeta;
+  if (meta) {
+    const lines = [];
+    if (meta.dims) {
+      lines.push(`- Aspect ratio (long/short): ${meta.dims.aspectRatio.toFixed(3)}  (standard 2.5×3.5" cards = ~1.400)`);
+      lines.push(`- Orientation: ${meta.dims.isPortrait ? 'portrait' : 'landscape'}`);
+      lines.push(`- Inferred format from shape: ${meta.dims.inferredFormat}`);
+      if (!meta.dims.aspectMatchesStandard) {
+        lines.push(`- NOTE: This card's aspect ratio differs from a standard modern card. Consider this when identifying the brand/set — it may be a mini, tobacco-era card, oversized parallel, sticker, or non-standard format.`);
+      }
+    }
+    if (meta.rotationDeg != null) {
+      lines.push(`- Card tilt in frame: ${meta.rotationDeg.toFixed(1)}°  (used for context only — orient as needed)`);
+    }
+    if (lines.length) {
+      measurementBlock = `\n\nCamera measurement context (provided by app, not from image alone):\n${lines.join('\n')}`;
+    }
+  }
+
   return `You are identifying a sports trading card from one or more photos. Extract the card details and respond with ONLY a JSON object (no markdown, no code fences, no commentary).
 
-For each field, follow the description carefully. Some fields explicitly allow inference from visual context (player's team, uniform era, set design, etc.) — use that license when granted. For fields that don't explicitly allow inference, use null or empty string if you cannot determine the value from what's visible.
+For each field, follow the description carefully. Some fields explicitly allow inference from visual context (player's team, uniform era, set design, etc.) — use that license when granted. For fields that don't explicitly allow inference, use null or empty string if you cannot determine the value from what's visible.${measurementBlock}
 {
 ${standardLines.join(',\n')}${customBlock}
 }`;
