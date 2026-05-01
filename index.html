@@ -601,6 +601,7 @@
             <label class="checkbox-wrap"><input type="checkbox" id="opt-auto-capture" checked /> Auto-capture when focused</label>
             <label class="checkbox-wrap"><input type="checkbox" id="opt-angle-scan" /> Scan parallel (capture at multiple angles)</label>
             <label class="checkbox-wrap"><input type="checkbox" id="opt-dedupe" checked /> Prevent duplicate captures</label>
+            <label class="checkbox-wrap" title="Disables aspect-ratio gating. Use for die-cut, square, oversized, mini, or shaped cards."><input type="checkbox" id="opt-special-shapes" /> Allow special-shaped cards (die-cut, square, mini, jumbo)</label>
           </div>
           <div id="camera-controls" class="camera-controls" style="display:none"></div>
         </div>
@@ -1155,7 +1156,8 @@ const state = {
     options: {
       autoCapture: true,
       angleScan: false,
-      dedupe: true
+      dedupe: true,
+      specialShapes: false
     }
   }
 };
@@ -1847,13 +1849,14 @@ async function lookupPricing(opts = {}) {
   }
 
   // Build a human-readable card description for Claude to search on
+  // Card number gets emphasis since it uniquely identifies the card within a set
   const desc = [
     year,
     brand,
     setName,
     player,
     team ? `(${team})` : '',
-    cardNumber ? `card #${cardNumber}` : '',
+    cardNumber ? `#${cardNumber}` : '',
     parallel ? `${parallel} parallel` : '',
     serial ? `serial ${serial}` : '',
     isRookie ? 'rookie card' : '',
@@ -1874,6 +1877,13 @@ async function lookupPricing(opts = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cardDescription: desc,
+        // Structured fields for stricter matching by the worker
+        fields: {
+          year, brand, setName, player, team,
+          cardNumber, parallel, serial,
+          isRookie, isAuto, isRelic,
+          isGraded, gradingCompany: gradingCo, grade
+        },
         model: ApiConfig.model
       })
     });
@@ -1900,13 +1910,15 @@ async function lookupPricing(opts = {}) {
       const range = (parsed.rawPriceLow && parsed.rawPriceHigh)
         ? ` (range $${parsed.rawPriceLow.toFixed(2)}–$${parsed.rawPriceHigh.toFixed(2)})`
         : '';
+      const noCardNumWarning = !cardNumber ? ' · ⚠️ no card # — accuracy may suffer' : '';
       statusEl.className = 'ai-status show success';
-      statusEl.textContent = `💲 Median raw price: $${Number(parsed.rawPriceMedian).toFixed(2)}${range} · ${parsed.salesFound} sale${parsed.salesFound===1?'':'s'} · confidence: ${conf}`;
+      statusEl.textContent = `💲 Median raw price: $${Number(parsed.rawPriceMedian).toFixed(2)}${range} · ${parsed.salesFound} sale${parsed.salesFound===1?'':'s'} · confidence: ${conf}${noCardNumWarning}`;
       toast(`Raw price set to $${Number(parsed.rawPriceMedian).toFixed(2)}`, 'success');
     } else {
       recalcOptions();
       statusEl.className = 'ai-status show';
-      statusEl.textContent = `💲 No clear comps found. ${parsed.summary || 'Try entering more details (set, parallel, etc.)'}`;
+      const cardNumHint = !cardNumber ? ' Try adding the card number printed on the card.' : '';
+      statusEl.textContent = `💲 No clear comps found. ${parsed.summary || 'Try entering more details (set, parallel, etc.)'}${cardNumHint}`;
     }
   } catch (err) {
     console.error('Pricing lookup failed:', err);
@@ -2064,6 +2076,7 @@ async function startCamera() {
     state.smartCam.options.autoCapture = $('#opt-auto-capture').checked;
     state.smartCam.options.angleScan = $('#opt-angle-scan').checked;
     state.smartCam.options.dedupe = $('#opt-dedupe').checked;
+    state.smartCam.options.specialShapes = $('#opt-special-shapes').checked;
 
     setCamStatus('Tap card to capture', 'searching');
     setCamHint('Tap the screen to take a photo · Auto-capture also runs');
@@ -2506,13 +2519,22 @@ function analyzeFrame(imageData) {
     const bboxArea = bbox.w * bbox.h;
     const edgeDensity = edgeCount / Math.max(1, bboxArea);
 
-    // VERY permissive sanity check — only block if it's obviously NOT a card-like shape.
-    // We accept anything between square-ish (1.0) and elongated (2.5).
-    // Standard sports cards are 1.40, but at angles or with tight crops the bbox can
-    // measure 1.1–1.7 easily. Don't reject things in this range.
-    const aspectReasonable = cardAspect >= 1.00 && cardAspect <= 2.50;
-    const denseEnough = edgeDensity >= 0.015; // very low density requirement
-    const sizedOk = fillRatio >= 0.04;        // even a small thumbnail-sized region is fine
+    // Aspect-ratio sanity check.
+    //
+    // Standard mode (toggle off):
+    //   Accept 0.85–2.80 — covers virtually every produced sports card format including
+    //   Topps Five Star (square ~1.0), Allen & Ginter Mini (~1.45), tobacco T206 (~1.5),
+    //   1990s jumbo Topps Big (~1.4), die-cut shapes that bbox-measure roughly 1.1–1.6,
+    //   1960s oversized issues, and current 2.5×3.5 standard (1.40).
+    //
+    // Special-shapes mode (toggle on):
+    //   Skip aspect gating entirely — for opened booklet cards (very wide), unusual
+    //   die-cuts, half-cards, or any non-rectangular format. Density/size gates still
+    //   apply so we don't lock onto random scene clutter.
+    const useSpecialShapes = state.smartCam.options && state.smartCam.options.specialShapes;
+    const aspectReasonable = useSpecialShapes ? true : (cardAspect >= 0.85 && cardAspect <= 2.80);
+    const denseEnough = edgeDensity >= 0.015;
+    const sizedOk = fillRatio >= 0.04;
 
     looksLikeCard = aspectReasonable && denseEnough && sizedOk;
   }
@@ -2545,15 +2567,15 @@ function estimateCardDimensions(bbox, videoW, videoH) {
 
   // We can't measure actual physical mm without a calibration object,
   // BUT we can express dimensions as a percentage of a standard card.
-  // Assume the card IS standard size and solve for "implied scale" — useful for
-  // detecting oversized vs mini if the user gives us context, but mostly we just
-  // surface the aspect ratio + suggested format.
+  // Recognize the major non-standard formats so the AI gets better context.
   const inferredFormat =
-    aspect < 1.30 ? 'oversized/squarer (e.g., 1950s Bowman, oversized parallel)' :
-    aspect < 1.36 ? 'slightly squarer than standard' :
+    aspect < 1.05 ? 'square (e.g., Topps Five Star, Allen & Ginter Mini Squares, 1960s Topps oddballs)' :
+    aspect < 1.25 ? 'shorter than standard (oversized 1950s Bowman, jumbo Topps Big, die-cut variant, or oversized parallel)' :
+    aspect < 1.36 ? 'slightly squarer than standard (vintage 1960s, possible die-cut)' :
     aspectMatchesStandard ? 'standard 2.5×3.5"' :
-    aspect < 1.50 ? 'taller than standard (mini, tobacco-era, T206-style)' :
-    'unusually tall';
+    aspect < 1.55 ? 'taller than standard (mini, tobacco-era, T206-style, modern Allen & Ginter Mini)' :
+    aspect < 2.00 ? 'unusually tall (sticker, retail mini, premium tall format, tobacco-era reprint)' :
+    'extremely elongated (likely a booklet card opened, or a die-cut shape that triggered an unusual bbox)';
 
   return {
     widthPx: Math.round(wPx),
@@ -2939,6 +2961,11 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'opt-auto-capture') state.smartCam.options.autoCapture = e.target.checked;
   if (e.target.id === 'opt-angle-scan') state.smartCam.options.angleScan = e.target.checked;
   if (e.target.id === 'opt-dedupe') state.smartCam.options.dedupe = e.target.checked;
+  if (e.target.id === 'opt-special-shapes') {
+    state.smartCam.options.specialShapes = e.target.checked;
+    if (e.target.checked) toast('Special shapes mode: aspect-ratio gating off');
+    else toast('Standard shapes mode: aspect-ratio gating on');
+  }
 });
 
 $('#btn-clear-img').addEventListener('click', () => {
@@ -3037,6 +3064,7 @@ function buildAIPrompt() {
   // Append camera-measurement context if available
   let measurementBlock = '';
   const meta = state.smartCam.lastCapturedMeta;
+  const specialShapesActive = state.smartCam.options && state.smartCam.options.specialShapes;
   if (meta) {
     const lines = [];
     if (meta.dims) {
@@ -3044,8 +3072,11 @@ function buildAIPrompt() {
       lines.push(`- Orientation: ${meta.dims.isPortrait ? 'portrait' : 'landscape'}`);
       lines.push(`- Inferred format from shape: ${meta.dims.inferredFormat}`);
       if (!meta.dims.aspectMatchesStandard) {
-        lines.push(`- NOTE: This card's aspect ratio differs from a standard modern card. Consider this when identifying the brand/set — it may be a mini, tobacco-era card, oversized parallel, sticker, or non-standard format.`);
+        lines.push(`- NOTE: This card's aspect ratio differs from a standard modern card. Consider this when identifying the brand/set — it may be a die-cut, mini, tobacco-era card, square format (Five Star, Allen & Ginter Mini), oversized parallel, sticker, booklet, or non-standard format. The bbox aspect may also be skewed if the card is die-cut with an irregular outline.`);
       }
+    }
+    if (specialShapesActive) {
+      lines.push(`- Special-shapes mode is active: the user explicitly indicated this is a non-standard card (die-cut, square, jumbo, mini, shaped, booklet, etc.). When identifying the brand/set, prioritize candidates known for unusual shapes (Crown Royale, Donruss Dominators, Bowman's Best die-cuts, Topps Five Star, Topps Big, Allen & Ginter Mini, Triple Threads cut-outs, oversized box-toppers).`);
     }
     if (meta.rotationDeg != null) {
       lines.push(`- Card tilt in frame: ${meta.rotationDeg.toFixed(1)}°  (used for context only — orient as needed)`);
@@ -3776,18 +3807,28 @@ export default {
     // /price → enrich with web_search tool and pricing system prompt
     if (path === '/price') {
       const cardDesc = body.cardDescription || '';
+      const fields = body.fields || {};
       const model = body.model || 'claude-sonnet-4-6';
       if (!cardDesc) {
         return new Response(JSON.stringify({ error: 'cardDescription required' }), {
           status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
+
+      // Build constraints with card number as primary disambiguator
+      const constraints = [];
+      if (fields.cardNumber) constraints.push('CARD NUMBER: #' + fields.cardNumber + ' — PRIMARY identifier within the set. Comps must match this exact number.');
+      if (fields.parallel) constraints.push('PARALLEL: ' + fields.parallel + ' — must match exactly; do NOT use base card comps.');
+      if (fields.isGraded && fields.grade) constraints.push('GRADE: ' + (fields.gradingCompany || '') + ' ' + fields.grade);
+      else constraints.push('GRADE: raw/ungraded — exclude any slabbed sales');
+      const constraintsBlock = constraints.length ? '\\n\\nMatch criteria:\\n' + constraints.map(function(c){return '- '+c;}).join('\\n') : '';
+
       const apiBody = {
         model,
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-        system: 'You are a sports card pricing analyst. Search the web for RECENT SOLD comps (not asking prices) and estimate the price. CRITICAL RULES: (1) RAW means UNGRADED — exclude PSA/BGS/SGC/CGC slabbed sales unless the user specified a grade. (2) Only SOLD prices, never asking prices — prefer eBay sold filter (LH_Sold=1), 130point.com, PSA APR. (3) EXCLUDE OUTLIERS — drop highest and lowest before computing median; ignore any sale >3x the next-highest. (4) EXACT MATCH on player + year + brand + set + parallel + attributes (auto/relic/serial). Do not mix base cards with parallels or autos. (5) Use the MEDIAN, not the average — a couple of pristine copies skew average high. (6) Confidence: high = 5+ matching comps in 60 days; medium = 3-4; low = <3. If you cannot find enough exact-match sold comps, return all numbers as 0 and explain — do NOT guess. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs).',
-        messages: [{ role: 'user', content: 'Find recent SOLD comps and estimate the price for this sports card. Be conservative — bias toward the median of clean sold comps, not the high end:\\n\\n' + cardDesc }]
+        system: 'You are a sports card pricing analyst. Search the web for RECENT SOLD comps (not asking prices) and estimate the price. CRITICAL RULES: (1) CARD NUMBER IS PRIMARY DISAMBIGUATOR — within a set, two cards of the same player can have very different prices (base vs SP, photo variation, Update Series). When a card number is provided, your search queries MUST include it (e.g. "2023 Topps Chrome #150 Aaron Judge sold"). Verify each comp matches the number. (2) RAW means UNGRADED — exclude PSA/BGS/SGC/CGC slabbed sales unless the user specified a grade. (3) Only SOLD prices, never asking prices — prefer eBay sold filter (LH_Sold=1), 130point.com, PSA APR. (4) EXCLUDE OUTLIERS — drop highest and lowest before median; ignore any sale >3x the next-highest. (5) EXACT MATCH on player + year + brand + set + parallel + card number + attributes. Do not mix base cards with parallels or autos. (6) Use the MEDIAN, not the average. (7) Confidence: high = 5+ matching comps in 60 days with verified card number; medium = 3-4; low = <3 or missing card number. If you cannot find enough exact-match sold comps, return all numbers as 0 — do NOT guess. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs).',
+        messages: [{ role: 'user', content: 'Find recent SOLD comps and estimate the price for this sports card. Be conservative — bias toward the median of clean sold comps that match ALL criteria.\\n\\nCard: ' + cardDesc + constraintsBlock }]
       };
 
       const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
