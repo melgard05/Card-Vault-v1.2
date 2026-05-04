@@ -199,6 +199,72 @@
   .ai-status.success { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.06); color: var(--green); }
   .ai-status.error { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.06); color: var(--red); }
 
+  /* Field-level mismatch indicator (red asterisk) */
+  label.has-mismatch {
+    position: relative;
+    color: var(--red);
+  }
+  label.has-mismatch::after {
+    content: ' *';
+    color: var(--red);
+    font-weight: 900;
+    font-size: 1.2em;
+  }
+  .mismatch-tooltip {
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: rgba(248, 113, 113, 0.08);
+    border-left: 3px solid var(--red);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--red);
+  }
+  .mismatch-tooltip strong { color: var(--red); }
+  .mismatch-tooltip button {
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    border-radius: 3px;
+    font-size: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mismatch-tooltip button:hover {
+    background: rgba(248, 113, 113, 0.15);
+  }
+
+  /* Misprint / error alert */
+  .misprint-alert {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(252, 211, 77, 0.1) 0%, rgba(212, 168, 85, 0.05) 100%);
+    border: 1px solid rgba(252, 211, 77, 0.4);
+    border-left: 4px solid #fbbf24;
+    border-radius: 6px;
+    color: #fbbf24;
+    font-size: 12px;
+    line-height: 1.5;
+    display: none;
+  }
+  .misprint-alert.show { display: block; }
+  .misprint-alert .misprint-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    color: #fbbf24;
+    font-size: 13px;
+  }
+  .misprint-alert .misprint-meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
   /* Sales comps panel */
   .sales-panel {
     margin-top: 18px;
@@ -760,6 +826,12 @@
       <div class="panel">
         <div class="panel-title">Card Details</div>
 
+        <div class="misprint-alert" id="misprint-alert">
+          <div class="misprint-title">⚠️ Possible Misprint or Error Card</div>
+          <div id="misprint-body"></div>
+          <div class="misprint-meta" id="misprint-meta"></div>
+        </div>
+
         <div class="form-grid">
           <div>
             <label>Card ID (Inventory)</label>
@@ -770,7 +842,7 @@
             <input type="text" id="fld-player" placeholder="e.g., Mike Trout" />
           </div>
           <div>
-            <label>Sport *</label>
+            <label id="lbl-sport">Sport *</label>
             <select id="fld-sport">
               <option value="Baseball">Baseball</option>
               <option value="Basketball">Basketball</option>
@@ -783,17 +855,20 @@
               <option value="Multi-Sport">Multi-Sport</option>
               <option value="Other">Other</option>
             </select>
+            <div class="mismatch-tooltip" id="mm-sport" style="display:none"></div>
           </div>
           <div>
-            <label>Year *</label>
+            <label id="lbl-year">Year *</label>
             <input type="number" id="fld-year" placeholder="2024" min="1800" max="2099" />
+            <div class="mismatch-tooltip" id="mm-year" style="display:none"></div>
           </div>
           <div>
-            <label>Brand</label>
+            <label id="lbl-brand">Brand</label>
             <select id="fld-brand">
               <option value="">— select year/sport first —</option>
             </select>
             <input type="text" id="fld-brand-other" placeholder="Type custom brand" style="display:none; margin-top:6px" />
+            <div class="mismatch-tooltip" id="mm-brand" style="display:none"></div>
           </div>
           <div>
             <label>Set / Series</label>
@@ -1110,6 +1185,42 @@
     </div>
 
     <div class="settings-section">
+      <div class="panel-title">Scan Defaults</div>
+      <div class="settings-note">
+        Lock a default brand and/or year to apply on every scan. When the AI returns a value different from your locked default, the form field is flagged with a red asterisk so you can review the discrepancy. Useful when you're going through a single box or year-set in bulk.
+      </div>
+      <div class="form-grid-3">
+        <div>
+          <label class="checkbox-wrap" style="margin-bottom: 6px"><input type="checkbox" id="opt-default-brand-enabled" /> Lock default brand</label>
+          <input type="text" id="opt-default-brand" placeholder="e.g., Topps Chrome" />
+        </div>
+        <div>
+          <label class="checkbox-wrap" style="margin-bottom: 6px"><input type="checkbox" id="opt-default-year-enabled" /> Lock default year</label>
+          <input type="number" id="opt-default-year" placeholder="e.g., 2023" min="1900" max="2099" />
+        </div>
+        <div>
+          <label class="checkbox-wrap" style="margin-bottom: 6px"><input type="checkbox" id="opt-default-sport-enabled" /> Lock default sport</label>
+          <select id="opt-default-sport">
+            <option value="Baseball">Baseball</option>
+            <option value="Basketball">Basketball</option>
+            <option value="Football">Football</option>
+            <option value="Hockey">Hockey</option>
+            <option value="Soccer">Soccer</option>
+            <option value="Golf">Golf</option>
+            <option value="Racing">Racing</option>
+            <option value="Boxing/MMA">Boxing/MMA</option>
+            <option value="Multi-Sport">Multi-Sport</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top: 12px;">
+        <button class="btn btn-secondary" id="btn-save-defaults">Save Defaults</button>
+        <button class="btn btn-secondary" id="btn-clear-defaults">Clear All</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-section-head">
         <div class="panel-title">Scan Identifiers</div>
         <button class="btn btn-primary" id="btn-add-ident">+ Add Custom</button>
@@ -1259,6 +1370,36 @@ const ApiConfig = {
   set proxyUrl(v) { localStorage.setItem('cardvault:proxyUrl', v || ''); },
   get model() { return localStorage.getItem('cardvault:model') || 'claude-sonnet-4-6'; },
   set model(v) { localStorage.setItem('cardvault:model', v || 'claude-sonnet-4-6'); }
+};
+
+// -------- Scan Defaults config --------
+// Locks specific fields (brand, year, sport) to a default value applied on every scan.
+// When AI returns a different value, the form field is flagged with a red asterisk.
+const ScanDefaults = {
+  get raw() {
+    try { return JSON.parse(localStorage.getItem('cardvault:scanDefaults') || '{}'); }
+    catch { return {}; }
+  },
+  set raw(v) { localStorage.setItem('cardvault:scanDefaults', JSON.stringify(v || {})); },
+
+  get brandEnabled() { return !!this.raw.brandEnabled; },
+  get brand() { return this.raw.brand || ''; },
+  get yearEnabled() { return !!this.raw.yearEnabled; },
+  get year() { return this.raw.year ? parseInt(this.raw.year) : null; },
+  get sportEnabled() { return !!this.raw.sportEnabled; },
+  get sport() { return this.raw.sport || ''; },
+
+  save(brandEn, brand, yearEn, year, sportEn, sport) {
+    this.raw = {
+      brandEnabled: !!brandEn,
+      brand: brand || '',
+      yearEnabled: !!yearEn,
+      year: year || '',
+      sportEnabled: !!sportEn,
+      sport: sport || ''
+    };
+  },
+  clear() { localStorage.removeItem('cardvault:scanDefaults'); }
 };
 
 // -------- State --------
@@ -1888,7 +2029,10 @@ function switchView(name) {
   if (name === 'stats') renderStats();
   if (name === 'collection') renderCollection();
   if (name === 'settings') renderSettings();
-  if (name === 'scan') renderCustomFields();
+  if (name === 'scan') {
+    renderCustomFields();
+    applyScanDefaultsToForm();
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
@@ -1962,13 +2106,93 @@ function resetForm() {
   state.capturedBack = null;
   renderCaptureSlots();
   renderCustomFields();
-  recalcOptions(); // rebuild dropdowns for default sport, no year
+  // Apply locked defaults BEFORE recalc so dropdown filtering uses them
+  applyScanDefaultsToForm();
+  recalcOptions(); // rebuild dropdowns
+  clearAllMismatchFlags();
+  hideMisprintAlert();
   $('#ai-status').className = 'ai-status';
   $('#btn-save').textContent = 'Save to Vault';
   // Hide sales panel
   const salesPanel = $('#sales-panel');
   if (salesPanel) salesPanel.style.display = 'none';
   _salesData = { all: [], match: [], sources: [], context: null };
+}
+
+// Apply locked Scan Defaults to the form, but don't overwrite an in-progress edit
+function applyScanDefaultsToForm() {
+  if (state.editingId) return; // editing existing card — never override
+  if (ScanDefaults.sportEnabled && ScanDefaults.sport) {
+    $('#fld-sport').value = ScanDefaults.sport;
+  }
+  if (ScanDefaults.yearEnabled && ScanDefaults.year) {
+    $('#fld-year').value = ScanDefaults.year;
+  }
+  // Brand requires recalc to populate the dropdown first
+  if (ScanDefaults.brandEnabled && ScanDefaults.brand) {
+    recalcOptions();
+    setSelectOrOther('#fld-brand', '#fld-brand-other', ScanDefaults.brand);
+  }
+}
+
+// -------- Mismatch flagging (red asterisk on locked-default fields) --------
+function flagMismatch(fieldKey, lockedValue, scannedValue) {
+  const labelMap = { sport: 'lbl-sport', year: 'lbl-year', brand: 'lbl-brand' };
+  const tooltipMap = { sport: 'mm-sport', year: 'mm-year', brand: 'mm-brand' };
+  const lbl = $('#' + labelMap[fieldKey]);
+  const tt = $('#' + tooltipMap[fieldKey]);
+  if (!lbl || !tt) return;
+  lbl.classList.add('has-mismatch');
+  tt.style.display = '';
+  tt.innerHTML = `<strong>AI scan returned:</strong> "${esc(scannedValue || '(empty)')}" <strong>but locked default is:</strong> "${esc(lockedValue)}". <button data-mm-accept="${esc(fieldKey)}">Accept AI value</button> <button data-mm-keep="${esc(fieldKey)}">Keep locked</button>`;
+}
+
+function clearMismatchFlag(fieldKey) {
+  const labelMap = { sport: 'lbl-sport', year: 'lbl-year', brand: 'lbl-brand' };
+  const tooltipMap = { sport: 'mm-sport', year: 'mm-year', brand: 'mm-brand' };
+  $('#' + labelMap[fieldKey])?.classList.remove('has-mismatch');
+  const tt = $('#' + tooltipMap[fieldKey]);
+  if (tt) { tt.style.display = 'none'; tt.innerHTML = ''; }
+}
+
+function clearAllMismatchFlags() {
+  ['sport', 'year', 'brand'].forEach(clearMismatchFlag);
+}
+
+// Compare locked defaults vs AI-returned values; flag any mismatches
+function checkScanDefaultMismatches(parsed) {
+  if (ScanDefaults.sportEnabled && ScanDefaults.sport && parsed.sport && parsed.sport !== ScanDefaults.sport) {
+    flagMismatch('sport', ScanDefaults.sport, parsed.sport);
+  }
+  if (ScanDefaults.yearEnabled && ScanDefaults.year && parsed.year && parseInt(parsed.year) !== ScanDefaults.year) {
+    flagMismatch('year', ScanDefaults.year, parsed.year);
+  }
+  if (ScanDefaults.brandEnabled && ScanDefaults.brand && parsed.brand && parsed.brand.toLowerCase() !== ScanDefaults.brand.toLowerCase()) {
+    flagMismatch('brand', ScanDefaults.brand, parsed.brand);
+  }
+}
+
+// Misprint alert
+function showMisprintAlert(misprintInfo) {
+  const alert = $('#misprint-alert');
+  const body = $('#misprint-body');
+  const meta = $('#misprint-meta');
+  if (!alert || !body) return;
+  body.innerHTML = esc(misprintInfo.description || misprintInfo);
+  if (misprintInfo.confidence || misprintInfo.estimatedPremium) {
+    const parts = [];
+    if (misprintInfo.confidence) parts.push(`Confidence: ${esc(misprintInfo.confidence)}`);
+    if (misprintInfo.estimatedPremium) parts.push(`Potential value: ${esc(misprintInfo.estimatedPremium)}`);
+    meta.textContent = parts.join(' · ');
+  } else {
+    meta.textContent = '';
+  }
+  alert.classList.add('show');
+}
+
+function hideMisprintAlert() {
+  const alert = $('#misprint-alert');
+  if (alert) alert.classList.remove('show');
 }
 
 function fillFormFromCard(card) {
@@ -2361,6 +2585,30 @@ function setSalesTab(tab) {
 document.addEventListener('click', (e) => {
   if (e.target && e.target.id === 'tab-match') setSalesTab('match');
   else if (e.target && e.target.id === 'tab-all') setSalesTab('all');
+  // Mismatch tooltip buttons
+  const acceptKey = e.target && e.target.dataset && e.target.dataset.mmAccept;
+  const keepKey = e.target && e.target.dataset && e.target.dataset.mmKeep;
+  if (acceptKey) {
+    // Pull AI's original value from the tooltip text and apply it
+    const tt = e.target.closest('.mismatch-tooltip');
+    const text = tt ? tt.textContent : '';
+    const m = text.match(/AI scan returned:\s*"([^"]*)"/);
+    const aiVal = m ? m[1] : '';
+    if (aiVal && aiVal !== '(empty)') {
+      if (acceptKey === 'sport') $('#fld-sport').value = aiVal;
+      else if (acceptKey === 'year') $('#fld-year').value = aiVal;
+      else if (acceptKey === 'brand') {
+        recalcOptions();
+        setSelectOrOther('#fld-brand', '#fld-brand-other', aiVal);
+        recalcOptions();
+      }
+    }
+    clearMismatchFlag(acceptKey);
+    toast(`Accepted AI value for ${acceptKey}`);
+  } else if (keepKey) {
+    clearMismatchFlag(keepKey);
+    toast(`Kept locked value for ${keepKey}`);
+  }
 });
 
 // -------- Custom fields renderer --------
@@ -3532,7 +3780,15 @@ function buildAIPrompt() {
 
   return `You are identifying a sports trading card from one or more photos. Extract the card details and respond with ONLY a JSON object (no markdown, no code fences, no commentary).
 
-For each field, follow the description carefully. Some fields explicitly allow inference from visual context (player's team, uniform era, set design, etc.) — use that license when granted. For fields that don't explicitly allow inference, use null or empty string if you cannot determine the value from what's visible.${measurementBlock}
+For each field, follow the description carefully. Some fields explicitly allow inference from visual context (player's team, uniform era, set design, etc.) — use that license when granted. For fields that don't explicitly allow inference, use null or empty string if you cannot determine the value from what's visible.
+
+MISPRINT / ERROR DETECTION: Carefully examine the card for any signs of being a misprint, error, or variation. Look for: missing/extra ink, off-center cuts (>10%), miscut edges showing other cards, missing colors or color shifts, blank backs, wrong/mirror-image backs, missing logos or stats, missing player name or team, double-printing, ghost images, ink smears, wrong year/team showing, blank fronts, and other production anomalies. Standard centering issues (60/40, 70/30) are NOT misprints. Only flag genuine errors. Common error types: "miscut", "off-center", "missing color", "blank back", "wrong back", "ghost print", "ink smear", "double print", "missing logo", "no name on front", "wrong team", "uncorrected error" (UER).
+
+Add these fields to your response (in addition to the standard fields below):
+  "isMisprint": boolean,            // true if this card appears to have a printing error or variation
+  "misprintDetails": string,        // brief description of what looks wrong (e.g. "Card is miscut, showing ~15% of next card on left edge"). Empty string if not a misprint.
+  "misprintConfidence": "low" | "medium" | "high",  // how confident you are it's a real error vs a normal variation
+  "misprintPremium": string         // your best guess at the value premium ("2x base", "5-10x base", "potentially significant"). Empty string if uncertain or not a misprint.${measurementBlock}
 {
 ${standardLines.join(',\n')}${customBlock}
 }`;
@@ -3583,24 +3839,42 @@ $('#btn-ai').addEventListener('click', async () => {
     const jsonStr = firstBrace >= 0 ? clean.slice(firstBrace, lastBrace + 1) : clean;
     const parsed = JSON.parse(jsonStr);
 
+    // Clear any prior mismatch/misprint state from a previous scan
+    clearAllMismatchFlags();
+    hideMisprintAlert();
+
     // Apply standard fields — only enabled ones, and only if non-empty
     const enabledKeys = new Set(state.identifiers.filter(i => i.enabled && i.standard).map(i => i.key));
 
-    // Apply non-cascade fields directly
+    // Apply non-cascade fields directly, respecting locked defaults for sport/year
     const directMap = {
       player: '#fld-player', sport: '#fld-sport', year: '#fld-year',
       cardNumber: '#fld-num', serialNumber: '#fld-serial', team: '#fld-team', rawPrice: '#fld-rawprice'
     };
     Object.entries(directMap).forEach(([key, sel]) => {
-      if (enabledKeys.has(key) && parsed[key] !== null && parsed[key] !== undefined && parsed[key] !== '' && parsed[key] !== 0) {
-        $(sel).value = parsed[key];
+      if (!enabledKeys.has(key)) return;
+      if (parsed[key] === null || parsed[key] === undefined || parsed[key] === '' || parsed[key] === 0) return;
+      // Locked default takes priority — don't overwrite, just flag the mismatch
+      if (key === 'sport' && ScanDefaults.sportEnabled && ScanDefaults.sport) {
+        $(sel).value = ScanDefaults.sport; // keep locked
+        return;
       }
+      if (key === 'year' && ScanDefaults.yearEnabled && ScanDefaults.year) {
+        $(sel).value = ScanDefaults.year; // keep locked
+        return;
+      }
+      $(sel).value = parsed[key];
     });
 
     // Cascade-aware fields: set sport+year first, recalc, then brand, recalc, then set, recalc, then parallel
     recalcOptions();
     if (enabledKeys.has('brand') && parsed.brand) {
-      setSelectOrOther('#fld-brand', '#fld-brand-other', parsed.brand);
+      // Locked brand default takes priority
+      if (ScanDefaults.brandEnabled && ScanDefaults.brand) {
+        setSelectOrOther('#fld-brand', '#fld-brand-other', ScanDefaults.brand);
+      } else {
+        setSelectOrOther('#fld-brand', '#fld-brand-other', parsed.brand);
+      }
       recalcOptions();
     }
     if (enabledKeys.has('setName') && parsed.setName) {
@@ -3626,6 +3900,18 @@ $('#btn-ai').addEventListener('click', async () => {
         if (!el) return;
         if (id.type === 'boolean') el.checked = !!val;
         else el.value = val;
+      });
+    }
+
+    // ===== Mismatch flagging — compare AI result vs locked defaults =====
+    checkScanDefaultMismatches(parsed);
+
+    // ===== Misprint / error card alert =====
+    if (parsed.isMisprint || parsed.misprintDetails) {
+      showMisprintAlert({
+        description: parsed.misprintDetails || parsed.misprintDescription || 'AI flagged this card as having unusual visual characteristics that may indicate a misprint, error, or variation. Review the card carefully — error cards can be significantly more valuable than standard issues.',
+        confidence: parsed.misprintConfidence,
+        estimatedPremium: parsed.misprintPremium
       });
     }
 
@@ -4338,6 +4624,14 @@ function renderSettings() {
   $('#proxy-model').value = ApiConfig.model;
   updateProxyStatusPill();
 
+  // Populate Scan Defaults
+  $('#opt-default-brand-enabled').checked = ScanDefaults.brandEnabled;
+  $('#opt-default-brand').value = ScanDefaults.brand;
+  $('#opt-default-year-enabled').checked = ScanDefaults.yearEnabled;
+  $('#opt-default-year').value = ScanDefaults.year || '';
+  $('#opt-default-sport-enabled').checked = ScanDefaults.sportEnabled;
+  $('#opt-default-sport').value = ScanDefaults.sport || 'Baseball';
+
   // Storage usage
   const bytes = Storage.usage();
   const quotaEst = 5 * 1024 * 1024; // assume 5MB typical localStorage cap
@@ -4537,6 +4831,31 @@ $('#btn-reset-ident').addEventListener('click', async () => {
   renderSettings();
   renderCustomFields();
   toast('Identifiers reset to defaults', 'success');
+});
+
+// -------- Scan Defaults handlers --------
+$('#btn-save-defaults').addEventListener('click', () => {
+  ScanDefaults.save(
+    $('#opt-default-brand-enabled').checked,
+    $('#opt-default-brand').value.trim(),
+    $('#opt-default-year-enabled').checked,
+    $('#opt-default-year').value.trim(),
+    $('#opt-default-sport-enabled').checked,
+    $('#opt-default-sport').value
+  );
+  toast('Scan defaults saved', 'success');
+});
+
+$('#btn-clear-defaults').addEventListener('click', () => {
+  if (!confirm('Clear all scan defaults?')) return;
+  ScanDefaults.clear();
+  $('#opt-default-brand-enabled').checked = false;
+  $('#opt-default-brand').value = '';
+  $('#opt-default-year-enabled').checked = false;
+  $('#opt-default-year').value = '';
+  $('#opt-default-sport-enabled').checked = false;
+  $('#opt-default-sport').value = 'Baseball';
+  toast('Scan defaults cleared', 'success');
 });
 
 // -------- Keyboard shortcuts --------
