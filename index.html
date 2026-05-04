@@ -199,6 +199,76 @@
   .ai-status.success { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.06); color: var(--green); }
   .ai-status.error { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.06); color: var(--red); }
 
+  /* Sales comps panel */
+  .sales-panel {
+    margin-top: 18px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .sales-header {
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; flex-wrap: wrap;
+  }
+  .sales-title {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--gold);
+  }
+  .sales-tabs { display: flex; gap: 4px; }
+  .sales-tab {
+    padding: 5px 10px; font-size: 11px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; transition: 0.15s;
+    font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .sales-tab:hover { color: var(--text); border-color: var(--gold); }
+  .sales-tab.active { background: var(--gold); color: #1a1208; border-color: var(--gold); font-weight: 700; }
+  .sales-body { padding: 0; max-height: 360px; overflow-y: auto; }
+  .sales-empty { padding: 18px 14px; text-align: center; color: var(--text-dim); font-size: 12px; }
+  .sale-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none; color: var(--text);
+    transition: background 0.1s;
+  }
+  .sale-row:last-child { border-bottom: none; }
+  .sale-row:hover { background: rgba(212, 168, 85, 0.06); }
+  .sale-info { flex: 1; min-width: 0; }
+  .sale-title {
+    font-size: 12px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sale-meta {
+    font-size: 10px; color: var(--text-dim); margin-top: 2px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .sale-price {
+    font-family: var(--font-mono); font-weight: 700;
+    color: var(--green); font-size: 14px;
+    flex-shrink: 0;
+  }
+  .sale-parallel-badge {
+    display: inline-block; padding: 1px 6px;
+    background: rgba(212, 168, 85, 0.15); color: var(--gold);
+    border-radius: 3px; font-size: 9px;
+    font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .sale-parallel-badge.exact { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+  .sales-footer {
+    padding: 8px 14px; background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    font-size: 10px; color: var(--text-dim);
+    display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  }
+  .sales-footer a { color: var(--gold); text-decoration: none; }
+  .sales-footer a:hover { text-decoration: underline; }
+
   /* Stats */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
   @media (max-width: 760px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -426,6 +496,51 @@
     display: flex; flex-direction: column; gap: 8px;
   }
   .camera-options .checkbox-wrap { font-size: 12px; }
+
+  /* Capture mode toggle — prominent visual switch */
+  .capture-mode-toggle {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(212, 168, 85, 0.12) 0%, rgba(212, 168, 85, 0.04) 100%);
+    border: 1px solid rgba(212, 168, 85, 0.3);
+    border-radius: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .capture-mode-toggle .switch {
+    position: relative; width: 50px; height: 28px;
+    flex-shrink: 0;
+  }
+  .capture-mode-toggle .switch input { opacity: 0; width: 0; height: 0; }
+  .capture-mode-toggle .switch .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: #2a2a2a; border-radius: 28px;
+    transition: 0.2s;
+    border: 1px solid var(--border);
+  }
+  .capture-mode-toggle .switch .slider::before {
+    position: absolute; content: '';
+    height: 22px; width: 22px;
+    left: 2px; top: 2px;
+    background: var(--text-dim); border-radius: 50%;
+    transition: 0.2s;
+  }
+  .capture-mode-toggle .switch input:checked + .slider {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+  .capture-mode-toggle .switch input:checked + .slider::before {
+    transform: translateX(22px);
+    background: #1a1208;
+  }
+  .capture-mode-toggle .label-block { flex: 1; }
+  .capture-mode-toggle .label-title {
+    font-family: var(--font-display); font-size: 13px;
+    font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--gold);
+  }
+  .capture-mode-toggle .label-desc {
+    font-size: 11px; color: var(--text-dim); margin-top: 2px;
+  }
   .camera-controls {
     margin-top: 10px; padding: 12px; background: var(--bg-elev);
     border-radius: 6px; border: 1px solid var(--border);
@@ -597,8 +712,17 @@
             <button class="btn btn-primary" id="btn-manual-cap" disabled>Manual Capture</button>
             <button class="btn btn-secondary" id="btn-cam-stop" disabled>Stop</button>
           </div>
+          <div class="capture-mode-toggle">
+            <label class="switch">
+              <input type="checkbox" id="opt-auto-capture" checked />
+              <span class="slider"></span>
+            </label>
+            <div class="label-block">
+              <div class="label-title" id="capture-mode-title">Auto-Snap: ON</div>
+              <div class="label-desc" id="capture-mode-desc">Camera will auto-capture when card is focused. Toggle off for manual-only.</div>
+            </div>
+          </div>
           <div class="camera-options">
-            <label class="checkbox-wrap"><input type="checkbox" id="opt-auto-capture" checked /> Auto-capture when focused</label>
             <label class="checkbox-wrap"><input type="checkbox" id="opt-angle-scan" /> Scan parallel (capture at multiple angles)</label>
             <label class="checkbox-wrap"><input type="checkbox" id="opt-dedupe" checked /> Prevent duplicate captures</label>
             <label class="checkbox-wrap" title="Disables aspect-ratio gating. Use for die-cut, square, oversized, mini, or shaped cards."><input type="checkbox" id="opt-special-shapes" /> Allow special-shaped cards (die-cut, square, mini, jumbo)</label>
@@ -780,6 +904,19 @@
           <button class="btn btn-primary btn-block" id="btn-save">Save to Vault</button>
           <button class="btn btn-secondary" id="btn-recalc-options" title="Refresh dropdown options and look up pricing based on current selections">↻ Recalc &amp; Price</button>
           <button class="btn btn-secondary" id="btn-reset-form">Reset Form</button>
+        </div>
+
+        <!-- Recent comparable sales list (populated by Recalc & Price) -->
+        <div class="sales-panel" id="sales-panel" style="display:none">
+          <div class="sales-header">
+            <div class="sales-title">Recent Sold Comps</div>
+            <div class="sales-tabs">
+              <button class="sales-tab active" data-tab="match" id="tab-match">Matching parallel</button>
+              <button class="sales-tab" data-tab="all" id="tab-all">All parallels</button>
+            </div>
+          </div>
+          <div class="sales-body" id="sales-body"></div>
+          <div class="sales-footer" id="sales-footer"></div>
         </div>
       </div>
     </div>
@@ -1195,12 +1332,35 @@ function getCustomIdentifiers() { return state.identifiers.filter(i => !i.standa
 // regional or oddball sets, the "Other..." escape hatch lets users type freely.
 
 const CARD_DB = [
-  // ===== TOPPS =====
-  { sports: ['Baseball'], years: [1951, 9999], brand: 'Topps', sets: {
-    'Base': ['Gold', 'Silver Pack', 'Black', 'Rainbow Foil', 'Independence Day', 'Mother\'s Day Pink', 'Father\'s Day Blue', 'Memorial Day Camo', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum'],
-    'Update': ['Gold', 'Rainbow Foil', 'Black', 'Independence Day', 'Mother\'s Day Pink', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum'],
+  // ============================================================
+  // TOPPS BASEBALL FLAGSHIP
+  // ============================================================
+  { sports: ['Baseball'], years: [2000, 2009], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Black', 'Limited Edition', 'Home Team Advantage', 'Opening Day', '1st Edition'],
+    'Update': ['Gold', 'Black', 'Limited Edition'],
+    'Heritage': ['Black Refractor', 'Chrome', 'Refractor', 'Mini', 'New Age Performers']
+  }},
+  { sports: ['Baseball'], years: [2010, 2014], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Black', 'Diamond', 'Cognac Diamond', 'Platinum Diamond', 'Sparkle', 'Hope Diamond', 'Wal-Mart Blue', 'Target Red', 'Toys R Us Purple'],
+    'Update': ['Gold', 'Black', 'Diamond', 'Sparkle', 'Wal-Mart Blue', 'Target Red'],
+    'Heritage': ['Chrome', 'Refractor', 'Black Refractor', 'Mini', '50th Anniversary', 'Action Variation'],
+    'Stadium Club': ['Foilboard', 'Members Only', 'First Day Issue', 'Beam Team']
+  }},
+  { sports: ['Baseball'], years: [2015, 2019], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Silver Pack', 'Black', 'Rainbow Foil', 'Vintage Stock', 'Independence Day', 'Mother\'s Day Pink', 'Father\'s Day Blue', 'Memorial Day Camo', 'Negative', 'Clear', '1/1 Platinum', 'Snow Camo', 'Pink', 'Yellow', 'Limited'],
+    'Update': ['Gold', 'Rainbow Foil', 'Black', 'Independence Day', 'Mother\'s Day Pink', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum', 'Snow Camo'],
     'Heritage': ['Chrome', 'Refractor', 'Black Refractor', 'Gold Refractor', 'Mini', 'Hot Box Chrome', '50th Anniversary'],
-    'Heritage High Number': ['Chrome', 'Refractor', 'Black Refractor', 'Mini'],
+    'Stadium Club': ['Foilboard', 'Red Foil', 'Black Foil', 'Gold Foil', 'Members Only', 'Rainbow Foil'],
+    'Allen & Ginter': ['Mini', 'Mini A&G Back', 'Mini Black', 'Mini Glossy', 'Black Border', 'Gold', 'Glossy', 'Wood'],
+    'Gypsy Queen': ['Black & White', 'Green', 'Indigo', 'Purple', 'Black Bordered', 'Missing Nameplate'],
+    'Big League': ['Gold', 'Red Foil', 'Blue', 'Orange', 'Rainbow Foil'],
+    'Archives': ['Blue', 'Red', 'Purple', 'Gold', 'Black', '1/1 Printing Plate'],
+    'Fire': ['Blue', 'Gold Minted', 'Magenta', 'Orange', 'Purple', 'Red', 'Flame Foil']
+  }},
+  { sports: ['Baseball'], years: [2020, 9999], brand: 'Topps', sets: {
+    'Base': ['Gold', 'Silver Pack', 'Black', 'Rainbow Foil', 'Independence Day', 'Mother\'s Day Pink', 'Father\'s Day Blue', 'Memorial Day Camo', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum', 'Royal Blue', 'Yellow', 'Snow Camo', 'Easter Egg'],
+    'Update': ['Gold', 'Rainbow Foil', 'Black', 'Independence Day', 'Mother\'s Day Pink', 'Vintage Stock', 'Negative', 'Clear', '1/1 Platinum', 'Royal Blue'],
+    'Heritage': ['Chrome', 'Refractor', 'Black Refractor', 'Gold Refractor', 'Mini', 'Hot Box Chrome', '50th Anniversary'],
     'Stadium Club': ['Foilboard', 'Red Foil', 'Black Foil', 'Gold Foil', 'Members Only', 'Rainbow Foil'],
     'Allen & Ginter': ['Mini', 'Mini A&G Back', 'Mini Black', 'Mini Glossy', 'Black Border', 'Gold', 'Glossy', 'Wood'],
     'Gypsy Queen': ['Black & White', 'Green', 'Indigo', 'Purple', 'Black Bordered', 'Missing Nameplate'],
@@ -1213,30 +1373,61 @@ const CARD_DB = [
     'Definitive': ['Gold Frame', 'Platinum Frame', 'Silver Frame', 'Onyx Black'],
     'Five Star': ['Gold', 'Bronze', 'Silver', 'Diamond', 'Marble']
   }},
-  { sports: ['Baseball'], years: [1996, 9999], brand: 'Topps Chrome', sets: {
-    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Aqua Refractor'],
-    'Update': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor'],
+
+  // ============================================================
+  // TOPPS CHROME BASEBALL
+  // ============================================================
+  { sports: ['Baseball'], years: [2000, 2009], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'Black Refractor', 'Gold Refractor', 'Blue Refractor', 'X-Fractor', 'Atomic Refractor', 'Uncirculated'],
+    'Traded': ['Refractor', 'Black Refractor', 'Gold Refractor', 'X-Fractor']
+  }},
+  { sports: ['Baseball'], years: [2010, 2014], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Sepia Refractor', 'Atomic Refractor', 'Blue Refractor', 'Pink Refractor', 'Gold Refractor', 'Orange Refractor', 'Red Refractor', 'Black Refractor', 'Superfractor', 'Wave Refractor', 'Camo Refractor'],
+    'Update': ['Refractor', 'X-Fractor', 'Pink Refractor', 'Blue Refractor', 'Gold Refractor', 'Red Refractor', 'Black Refractor', 'Superfractor']
+  }},
+  { sports: ['Baseball'], years: [2015, 2019], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Aqua Refractor', 'Wave Refractor', 'Lava'],
+    'Update': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Negative'],
     'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black', 'Lava'],
     'Black': ['White Refractor', 'Gold Refractor', 'Red Refractor', 'Black Refractor', 'Atomic Refractor']
   }},
-  { sports: ['Football'], years: [1956, 9999], brand: 'Topps', sets: {
-    'Base': ['Gold', 'Black', 'Rainbow Foil', 'Vintage Stock', 'Inferno', 'Negative', 'Clear'],
-    'Heritage': ['Chrome', 'Refractor', 'Mini'],
-    'Stadium Club': ['Foilboard', 'Red Foil', 'Black Foil', 'Gold Foil', 'Members Only']
-  }},
-  { sports: ['Football'], years: [2007, 9999], brand: 'Topps Chrome', sets: {
-    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative']
+  { sports: ['Baseball'], years: [2020, 9999], brand: 'Topps Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Aqua Refractor', 'Lava', 'Mojo Refractor', 'Speckle Refractor', 'RayWave Refractor'],
+    'Update': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor'],
+    'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black', 'Lava', 'Padparadscha'],
+    'Black': ['White Refractor', 'Gold Refractor', 'Red Refractor', 'Black Refractor', 'Atomic Refractor'],
+    'Platinum Anniversary': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Gold Refractor', 'Black Refractor', 'Superfractor']
   }},
 
-  // ===== BOWMAN =====
-  { sports: ['Baseball'], years: [1948, 9999], brand: 'Bowman', sets: {
+  // ============================================================
+  // BOWMAN BASEBALL (FLAGSHIP & CHROME & DRAFT)
+  // ============================================================
+  { sports: ['Baseball'], years: [2000, 2009], brand: 'Bowman', sets: {
+    'Base': ['Gold', 'Silver', 'Blue'],
+    'Prospects': ['Gold', 'Silver', 'Blue'],
+    'Heritage': ['Mini', 'Gold', 'Black']
+  }},
+  { sports: ['Baseball'], years: [2010, 2014], brand: 'Bowman', sets: {
+    'Base': ['Gold', 'Silver', 'Blue', 'Orange', 'Purple'],
+    'Prospects': ['Gold', 'Silver', 'Blue', 'Orange', 'Purple'],
+    'Heritage': ['Mini', 'Gold', 'Black', 'Blue']
+  }},
+  { sports: ['Baseball'], years: [2015, 9999], brand: 'Bowman', sets: {
     'Base': ['Gold', 'Silver', 'Blue', 'Green', 'Red', 'Orange', 'Purple', 'Yellow', 'Black', 'Rainbow Foil'],
     'Prospects': ['Gold', 'Silver', 'Blue', 'Green', 'Red', 'Orange', 'Purple', 'Black', 'Rainbow Foil'],
     'Heritage': ['Mini', 'Black', 'Gold', 'Blue']
   }},
-  { sports: ['Baseball'], years: [1997, 9999], brand: 'Bowman Chrome', sets: {
-    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Lava'],
-    'Prospects': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Aqua Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Negative', 'Lava'],
+  { sports: ['Baseball'], years: [2000, 2009], brand: 'Bowman Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Gold Refractor', 'Blue Refractor', 'Black Refractor', 'Uncirculated'],
+    'Prospects': ['Refractor', 'X-Fractor', 'Gold Refractor', 'Blue Refractor', 'Black Refractor']
+  }},
+  { sports: ['Baseball'], years: [2010, 2014], brand: 'Bowman Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Atomic Refractor', 'Blue Refractor', 'Gold Refractor', 'Orange Refractor', 'Red Refractor', 'Black Refractor', 'Superfractor', 'Purple Refractor'],
+    'Prospects': ['Refractor', 'X-Fractor', 'Atomic Refractor', 'Blue Refractor', 'Gold Refractor', 'Orange Refractor', 'Red Refractor', 'Black Refractor', 'Superfractor', 'Purple Refractor']
+  }},
+  { sports: ['Baseball'], years: [2015, 9999], brand: 'Bowman Chrome', sets: {
+    'Base': ['Refractor', 'X-Fractor', 'Prism Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Yellow Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Sepia', 'Negative', 'Lava', 'Mojo'],
+    'Prospects': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Aqua Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Negative', 'Lava', 'Mojo'],
     'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black', 'Lava']
   }},
   { sports: ['Baseball'], years: [2010, 9999], brand: 'Bowman Draft', sets: {
@@ -1245,101 +1436,220 @@ const CARD_DB = [
     'Sapphire': ['Aqua', 'Yellow', 'Green', 'Orange', 'Red', 'Pink', 'Black']
   }},
 
-  // ===== PANINI PRIZM =====
-  { sports: ['Baseball','Basketball','Football','Soccer','Hockey','Boxing/MMA','Multi-Sport'], years: [2012, 9999], brand: 'Panini Prizm', sets: {
-    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Teal', 'Light Blue', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold'],
-    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Nebula'],
-    'Draft Picks': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  // ============================================================
+  // PANINI PRIZM — sport- and era-specific parallel lists
+  // ============================================================
+  // BASKETBALL — Prizm started 2012-13. Parallels evolved year by year.
+  { sports: ['Basketball'], years: [2012, 2014], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Gold', 'Black Finite'],
+    'Rookies': ['Silver Prizm', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Gold', 'Black Finite']
   }},
-  { sports: ['Football'], years: [2012, 9999], brand: 'Panini Prizm', sets: {
-    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Teal', 'Light Blue', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Color Blast', 'Sensational Signatures'],
-    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Nebula'],
-    'Draft Picks': ['Silver Prizm', 'Hyper', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  { sports: ['Basketball'], years: [2015, 2017], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Yellow', 'Camo', 'Gold', 'Black Finite'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Basketball'], years: [2018, 2020], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Yellow', 'Teal', 'Camo', 'Mojo', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Mojo', 'Gold', 'Black Finite', 'Nebula']
+  }},
+  { sports: ['Basketball'], years: [2021, 2022], brand: 'Panini Prizm', sets: {
+    // 2021-22 Panini Prizm Basketball — exact parallel set, NO ICE
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold', 'Black Shimmer FOTL', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Disco', 'Mojo', 'Tiger Stripe', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Choice', 'Black Shimmer FOTL', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula']
+  }},
+  { sports: ['Basketball'], years: [2022, 2023], brand: 'Panini Prizm', sets: {
+    // 2022-23 added Ice variants more broadly + new parallel colors
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Lucky Envelope', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold', 'Black Shimmer FOTL', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Disco', 'Mojo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Choice', 'Black Shimmer FOTL', 'Gold', 'Black Finite', 'Nebula']
+  }},
+  { sports: ['Basketball'], years: [2023, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Choice', 'Choice Blue', 'Choice Red', 'Choice Black Gold', 'Black Shimmer FOTL', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Disco', 'Mojo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Choice', 'Gold', 'Black Finite', 'Nebula']
   }},
 
-  // ===== PANINI SELECT =====
-  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2013, 9999], brand: 'Panini Select', sets: {
-    'Concourse': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra', 'Camo'],
-    'Premier Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra'],
-    'Club Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Black', 'Gold', 'Disco', 'Zebra'],
-    'Field Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
-    'Suite Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  // FOOTBALL — Prizm started 2012. Same general progression.
+  { sports: ['Football'], years: [2012, 2014], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Gold', 'Black Finite'],
+    'Rookies': ['Silver Prizm', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Football'], years: [2015, 2017], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Camo', 'Gold', 'Black Finite'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Football'], years: [2018, 2020], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Mojo', 'Gold', 'Black Finite', 'Nebula']
+  }},
+  { sports: ['Football'], years: [2021, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula', 'Color Blast', 'Sensational Signatures'],
+    'Rookies': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Disco', 'Mojo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Black', 'Gold', 'Black Finite', 'Nebula']
   }},
 
-  // ===== PANINI DONRUSS / OPTIC / MOSAIC =====
-  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2014, 9999], brand: 'Panini Donruss', sets: {
-    'Base': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Press Proof', 'Press Proof Premium', 'Crystal', 'Vector', 'Career Stat Line', 'Season Stat Line', 'Diamond Kings'],
-    'Rated Rookies': ['Holo Blue', 'Holo Orange', 'Press Proof', 'Crystal', 'Diamond Kings'],
+  // BASEBALL — Prizm started 2012, less pervasive than basketball
+  { sports: ['Baseball'], years: [2012, 2017], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Baseball'], years: [2018, 2020], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Hyper', 'Light Blue', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Mojo', 'Camo', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Baseball'], years: [2021, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Light Blue', 'Yellow', 'Teal', 'Disco', 'Mojo', 'Tiger Stripe', 'Camo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula']
+  }},
+
+  // HOCKEY — Prizm started 2013-14
+  { sports: ['Hockey'], years: [2013, 2017], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Blue Pulsar', 'Green Pulsar', 'Red Pulsar', 'Purple Cracked Ice', 'Gold', 'Black'],
+    'Rookies': ['Silver Prizm', 'Blue Pulsar', 'Green Pulsar', 'Red Pulsar', 'Gold', 'Black']
+  }},
+  { sports: ['Hockey'], years: [2018, 2020], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Hyper', 'Blue', 'Green', 'Red', 'Purple', 'Pink', 'Mojo', 'Gold', 'Black Finite'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Green', 'Red', 'Purple', 'Pink', 'Mojo', 'Gold', 'Black Finite']
+  }},
+  { sports: ['Hockey'], years: [2021, 9999], brand: 'Panini Prizm', sets: {
+    'Base': ['Silver Prizm', 'Red White & Blue', 'Hyper', 'Blue', 'Green', 'Orange', 'Red', 'Purple', 'Pink', 'Disco', 'Mojo', 'Tiger Stripe', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Black', 'Gold', 'Gold Vinyl', 'Black Finite', 'Nebula'],
+    'Rookies': ['Silver Prizm', 'Hyper', 'Blue', 'Green', 'Red', 'Purple', 'Pink', 'Mojo', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Gold', 'Black Finite', 'Nebula']
+  }},
+
+  // ============================================================
+  // PANINI SELECT
+  // ============================================================
+  { sports: ['Basketball','Football'], years: [2013, 2017], brand: 'Panini Select', sets: {
+    'Concourse': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
+    'Premier Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
+    'Courtside': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold']
+  }},
+  { sports: ['Basketball','Football','Baseball','Soccer','Hockey'], years: [2018, 9999], brand: 'Panini Select', sets: {
+    'Concourse': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Disco', 'Zebra', 'Camo', 'Black', 'Gold'],
+    'Premier Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Tie-Dye', 'Disco', 'Zebra', 'Black', 'Gold'],
+    'Club Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Tie-Dye', 'Disco', 'Black', 'Gold'],
+    'Courtside / Field Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
+    'Suite Level / Premier Level': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Black', 'Gold']
+  }},
+
+  // ============================================================
+  // PANINI DONRUSS / DONRUSS OPTIC / MOSAIC
+  // ============================================================
+  // DONRUSS (paper, base flagship)
+  { sports: ['Basketball','Football','Baseball','Soccer','Hockey'], years: [2014, 9999], brand: 'Panini Donruss', sets: {
+    'Base': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Press Proof Silver', 'Press Proof Blue', 'Press Proof Red', 'Press Proof Gold', 'Press Proof Black', 'Crystal', 'Vector', 'Career Stat Line', 'Season Stat Line', 'Diamond Kings'],
+    'Rated Rookies': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Press Proof Silver', 'Press Proof Red', 'Press Proof Gold', 'Press Proof Black', 'Crystal'],
     'Diamond Kings': ['Holo Blue', 'Holo Orange', 'Holo Purple', 'Black & White', 'Gold', 'Framed', 'Studio']
   }},
-  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2016, 9999], brand: 'Panini Donruss Optic', sets: {
-    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Lime Green Pulsar', 'Aqua', 'Pandora', 'Pink Velocity', 'Blue Velocity', 'Red Mojo', 'Choice', 'Checkerboard', 'Gold Vinyl', 'White Sparkle'],
-    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Aqua', 'Pandora']
+
+  // DONRUSS OPTIC — chrome/refractor variant; Ice IS a parallel here
+  { sports: ['Basketball'], years: [2016, 2017], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold'],
+    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold']
   }},
-  { sports: ['Baseball','Basketball','Football','Soccer','Hockey'], years: [2019, 9999], brand: 'Panini Mosaic', sets: {
-    'Base': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Red', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Purple', 'Mosaic Pink', 'Mosaic Black', 'Mosaic Gold', 'Mosaic Reactive Blue', 'Mosaic Reactive Yellow', 'Mosaic Reactive Orange', 'Mosaic Camo Pink', 'Mosaic Genesis', 'Mosaic Choice'],
-    'Rookies': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Pink', 'Mosaic Gold', 'Mosaic Reactive Blue']
+  { sports: ['Basketball'], years: [2018, 2020], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Aqua', 'Pandora', 'Shock', 'Lime Green', 'Lime Velocity', 'Pink Velocity', 'Blue Velocity', 'Red Mojo', 'Choice'],
+    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Aqua', 'Pandora', 'Shock', 'Lime Green']
+  }},
+  { sports: ['Basketball'], years: [2021, 9999], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Aqua', 'Pandora', 'Lime Green', 'Lime Green Pulsar', 'Pink Velocity', 'Blue Velocity', 'Red Mojo', 'Choice', 'Checkerboard', 'Gold Vinyl', 'White Sparkle', 'Blue Ice', 'Pink Ice', 'Purple Ice', 'Green Ice', 'Red Ice'],
+    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Aqua', 'Pandora', 'Lime Green', 'Blue Ice', 'Pink Ice', 'Purple Ice']
+  }},
+  { sports: ['Football'], years: [2016, 9999], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Pink Velocity', 'Blue Velocity', 'Red Mojo', 'Choice', 'Checkerboard', 'Gold Vinyl', 'White Sparkle', 'Pandora'],
+    'Rated Rookies': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Pandora']
+  }},
+  { sports: ['Baseball','Soccer','Hockey'], years: [2018, 9999], brand: 'Panini Donruss Optic', sets: {
+    'Base': ['Holo', 'Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Lime Green', 'Aqua', 'Pandora']
   }},
 
-  // ===== PANINI HIGH-END =====
+  // MOSAIC — chrome variant, distinct color suite
+  { sports: ['Basketball','Football','Baseball','Soccer'], years: [2019, 9999], brand: 'Panini Mosaic', sets: {
+    'Base': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Red', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Purple', 'Mosaic Pink', 'Mosaic Black', 'Mosaic Gold', 'Mosaic Reactive Blue', 'Mosaic Reactive Yellow', 'Mosaic Reactive Orange', 'Mosaic Reactive Green', 'Mosaic Camo Pink', 'Mosaic Genesis', 'Mosaic Choice', 'Mosaic Choice Fusion', 'Mosaic Choice Black Gold', 'Mosaic Nebula'],
+    'Rookies': ['Mosaic Silver', 'Mosaic Blue', 'Mosaic Green', 'Mosaic Orange', 'Mosaic Pink', 'Mosaic Gold', 'Mosaic Black', 'Mosaic Reactive Blue', 'Mosaic Genesis', 'Mosaic Nebula']
+  }},
+
+  // ============================================================
+  // PANINI HIGH-END
+  // ============================================================
   { sports: ['Basketball','Football','Soccer','Baseball'], years: [2009, 9999], brand: 'Panini National Treasures', sets: {
-    'Base': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'Black'],
-    'Rookie Patch Auto': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'Black']
+    'Base': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'NBA Logoman', 'Black'],
+    'Rookie Patch Auto': ['Bronze', 'Silver', 'Gold', 'Holo Gold', 'Holo Silver', 'Platinum', 'Stars & Stripes', 'NFL Shield', 'Logoman', 'NBA Logoman', 'Black']
   }},
   { sports: ['Basketball','Football','Baseball'], years: [2010, 9999], brand: 'Panini Immaculate', sets: {
-    'Base': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman', 'NBA Logoman'],
-    'Rookie Patch Auto': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman']
+    'Base': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman', 'NBA Logoman', 'NFL Shield'],
+    'Rookie Patch Auto': ['Red', 'Blue', 'Green', 'Gold', 'Platinum', 'Logoman', 'NBA Logoman', 'NFL Shield']
   }},
   { sports: ['Basketball','Football','Soccer'], years: [2010, 9999], brand: 'Panini Flawless', sets: {
     'Base': ['Sapphire', 'Ruby', 'Emerald', 'Diamond', 'Black', 'Gold'],
     'Rookie Patch Auto': ['Sapphire', 'Ruby', 'Emerald', 'Diamond', 'Black', 'Gold']
   }},
   { sports: ['Basketball','Football'], years: [2008, 9999], brand: 'Panini Contenders', sets: {
-    'Base': ['Cracked Ice', 'Gold', 'Playoff Ticket', 'Championship Ticket', 'Super Bowl Ticket', 'Rookie Ticket', 'Rookie Ticket Auto', 'Variation'],
+    'Base': ['Cracked Ice', 'Gold', 'Playoff Ticket', 'Championship Ticket', 'Super Bowl Ticket', 'Rookie Ticket', 'Rookie Ticket Auto', 'Variation', 'Printing Plate'],
     'Rookie Tickets': ['Cracked Ice', 'Gold', 'Playoff Ticket', 'Championship Ticket', 'Super Bowl Ticket']
   }},
+  { sports: ['Basketball','Football'], years: [2003, 9999], brand: 'Panini Crown Royale', sets: {
+    'Base': ['Silhouette', 'Sapphire', 'Ruby', 'Emerald', 'Crown', 'Cyan', 'Magenta', 'Yellow'],
+    'Rookies': ['Silhouette', 'Sapphire', 'Ruby', 'Emerald', 'Crown']
+  }},
 
-  // ===== UPPER DECK =====
-  { sports: ['Baseball','Basketball','Football','Hockey','Golf'], years: [1989, 9999], brand: 'Upper Deck', sets: {
-    'Base': ['Gold', 'Silver', 'Diamond', 'Star Rookies'],
-    'SP Authentic': ['Gold', 'Silver', 'Future Watch', 'Future Watch Auto'],
+  // ============================================================
+  // UPPER DECK — multi-sport flagship
+  // ============================================================
+  { sports: ['Baseball','Basketball','Football','Hockey','Golf'], years: [2000, 2009], brand: 'Upper Deck', sets: {
+    'Base': ['Gold', 'Silver', 'Star Rookies'],
+    'SP Authentic': ['Gold', 'Silver', 'Future Watch', 'Future Watch Auto', 'Limited'],
     'SPx': ['Gold', 'Silver', 'Spectrum'],
     'Black Diamond': ['Diamond', 'Quad Diamond', 'Triple Diamond', 'Double Diamond', 'Single Diamond', 'Gold', 'Black']
   }},
-  { sports: ['Hockey'], years: [1990, 9999], brand: 'Upper Deck', sets: {
-    'Series 1': ['Young Guns', 'Young Guns Canvas', 'Exclusives', 'High Gloss', 'UD Canvas'],
-    'Series 2': ['Young Guns', 'Young Guns Canvas', 'Exclusives', 'High Gloss', 'UD Canvas'],
-    'Extended': ['Young Guns', 'Young Guns Canvas', 'Exclusives']
+  { sports: ['Baseball','Basketball','Football','Hockey','Golf'], years: [2010, 9999], brand: 'Upper Deck', sets: {
+    'Base': ['Gold', 'Silver', 'Diamond', 'Star Rookies'],
+    'SP Authentic': ['Gold', 'Silver', 'Future Watch', 'Future Watch Auto', 'Limited'],
+    'SPx': ['Gold', 'Silver', 'Spectrum'],
+    'Black Diamond': ['Diamond', 'Quad Diamond', 'Triple Diamond', 'Double Diamond', 'Single Diamond', 'Gold', 'Black']
   }},
-  { sports: ['Hockey'], years: [1997, 9999], brand: 'Upper Deck SP Authentic', sets: {
-    'Base': ['Future Watch', 'Future Watch Auto', 'Future Watch Auto Patch', 'Limited', 'Rookie Patch']
+  { sports: ['Hockey'], years: [2000, 2009], brand: 'Upper Deck', sets: {
+    'Series 1': ['Young Guns', 'UD Exclusives', 'High Gloss', 'Star Rookies'],
+    'Series 2': ['Young Guns', 'UD Exclusives', 'High Gloss']
   }},
-  { sports: ['Hockey','Basketball'], years: [1998, 9999], brand: 'Upper Deck The Cup', sets: {
-    'Rookie Patch Auto': ['Limited Logos', 'Patch Auto', 'Cup Auto']
+  { sports: ['Hockey'], years: [2010, 9999], brand: 'Upper Deck', sets: {
+    'Series 1': ['Young Guns', 'Young Guns Canvas', 'Young Guns High Gloss', 'UD Exclusives', 'UD Canvas', 'High Gloss', 'Clear Cut', 'Outburst Silver'],
+    'Series 2': ['Young Guns', 'Young Guns Canvas', 'Young Guns High Gloss', 'UD Exclusives', 'UD Canvas', 'High Gloss', 'Clear Cut'],
+    'Extended': ['Young Guns', 'Young Guns Canvas', 'UD Exclusives']
   }},
-
-  // ===== FLEER =====
-  { sports: ['Baseball','Basketball','Football'], years: [1981, 2007], brand: 'Fleer', sets: {
-    'Base': ['Glossy', 'Tiffany'],
-    'Ultra': ['Gold Medallion', 'Platinum Medallion', 'Hot Pack'],
-    'Metal Universe': ['Precious Metal Gems (PMG) Green', 'Precious Metal Gems (PMG) Red', 'Precious Metal Gems (PMG) Blue', 'Precious Metal Gems (PMG) Purple']
+  { sports: ['Hockey'], years: [2000, 9999], brand: 'Upper Deck SP Authentic', sets: {
+    'Base': ['Future Watch', 'Future Watch Auto', 'Future Watch Auto Patch', 'Limited', 'Rookie Patch', 'Auto Patch']
   }},
-
-  // ===== DONRUSS (CLASSIC) =====
-  { sports: ['Baseball'], years: [1981, 2005], brand: 'Donruss', sets: {
-    'Base': ['Diamond Kings', 'Rated Rookies'],
-    'Elite': ['Aspirations', 'Status', 'Crusade']
+  { sports: ['Hockey','Basketball'], years: [2005, 9999], brand: 'Upper Deck The Cup', sets: {
+    'Rookie Patch Auto': ['Limited Logos', 'Patch Auto', 'Cup Auto'],
+    'Auto Patch': ['Limited Logos', 'Patch Auto', 'Cup Auto']
   }},
 
-  // ===== SCORE =====
-  { sports: ['Baseball','Football'], years: [1988, 9999], brand: 'Score', sets: {
+  // ============================================================
+  // FLEER (CLASSIC ERA, ENDED 2007)
+  // ============================================================
+  { sports: ['Baseball','Basketball','Football'], years: [2000, 2007], brand: 'Fleer', sets: {
+    'Base': ['Glossy', 'Tiffany', 'Tradition'],
+    'Ultra': ['Gold Medallion', 'Platinum Medallion', 'Hot Pack', 'Master Set'],
+    'Metal Universe': ['Precious Metal Gems Green', 'Precious Metal Gems Red', 'Precious Metal Gems Blue', 'Precious Metal Gems Purple']
+  }},
+
+  // ============================================================
+  // DONRUSS (CLASSIC ERA, paused 2005)
+  // ============================================================
+  { sports: ['Baseball'], years: [2000, 2005], brand: 'Donruss', sets: {
+    'Base': ['Diamond Kings', 'Rated Rookies', 'Press Proof Silver', 'Press Proof Gold'],
+    'Elite': ['Aspirations', 'Status', 'Crusade'],
+    'Studio': ['Proofs Silver', 'Proofs Gold', 'Proofs Black']
+  }},
+
+  // ============================================================
+  // SCORE
+  // ============================================================
+  { sports: ['Baseball','Football'], years: [2000, 9999], brand: 'Score', sets: {
     'Base': ['Glossy', 'Silver', 'Gold Zone', 'Red Zone', 'Black', 'Showcase']
   }},
 
-  // ===== LEAF / SAGE / PRO SET (PROSPECT BRANDS) =====
+  // ============================================================
+  // LEAF / SAGE / PRO SET (PROSPECT BRANDS)
+  // ============================================================
   { sports: ['Football','Basketball','Multi-Sport'], years: [2010, 9999], brand: 'Leaf', sets: {
-    'Metal Draft': ['Prismatic Silver', 'Prismatic Blue', 'Prismatic Green', 'Prismatic Red', 'Prismatic Gold', 'Prismatic Black', 'Wave', 'Crystals', 'Mojo'],
-    'Trinity': ['Bronze', 'Silver', 'Gold', 'Black'],
+    'Metal Draft': ['Prismatic Silver', 'Prismatic Blue', 'Prismatic Green', 'Prismatic Red', 'Prismatic Gold', 'Prismatic Black', 'Wave', 'Crystals', 'Mojo', 'Super', 'Pre-Production'],
+    'Trinity': ['Bronze', 'Silver', 'Gold', 'Black', 'Patch'],
     'Valiant': ['Silver', 'Blue', 'Red', 'Green', 'Gold', 'Black']
   }},
   { sports: ['Football','Basketball'], years: [2002, 9999], brand: 'SAGE Hit', sets: {
@@ -1347,59 +1657,74 @@ const CARD_DB = [
     'Premier Draft': ['Silver', 'Gold', 'Red', 'Blue', 'Black']
   }},
 
-  // ===== HOCKEY-SPECIFIC =====
-  { sports: ['Hockey'], years: [1990, 2003], brand: 'Pinnacle', sets: {
+  // ============================================================
+  // HOCKEY-SPECIFIC
+  // ============================================================
+  { sports: ['Hockey'], years: [2000, 2003], brand: 'Pinnacle', sets: {
     'Base': ['Artist\'s Proof', 'Museum Collection'],
     'Mint': ['Coin', 'Bronze', 'Silver', 'Gold']
   }},
-  { sports: ['Hockey'], years: [1992, 2002], brand: 'Parkhurst', sets: {
+  { sports: ['Hockey'], years: [2000, 2002], brand: 'Parkhurst', sets: {
     'Base': ['Emerald Ice', 'Gold']
   }},
   { sports: ['Hockey'], years: [2001, 9999], brand: 'In The Game', sets: {
-    'Heroes & Prospects': ['Gold', 'Silver', 'Black'],
-    'Ultimate Memorabilia': ['Gold', 'Silver']
+    'Heroes & Prospects': ['Gold', 'Silver', 'Black', 'Emerald', 'Ruby', 'Sapphire'],
+    'Ultimate Memorabilia': ['Gold', 'Silver', 'Patch']
   }},
 
-  // ===== SOCCER-SPECIFIC =====
+  // ============================================================
+  // SOCCER
+  // ============================================================
   { sports: ['Soccer'], years: [2014, 9999], brand: 'Topps Chrome UEFA', sets: {
-    'Base': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Aqua', 'Lava']
+    'Base': ['Refractor', 'Pink Refractor', 'Blue Refractor', 'Green Refractor', 'Orange Refractor', 'Red Refractor', 'Gold Refractor', 'Black Refractor', 'Atomic Refractor', 'Superfractor', 'Aqua', 'Lava', 'Speckle', 'Negative']
   }},
-  { sports: ['Soccer'], years: [1996, 9999], brand: 'Panini', sets: {
+  { sports: ['Soccer'], years: [2000, 9999], brand: 'Panini', sets: {
     'World Cup': ['Sticker', 'Foil Sticker'],
-    'Adrenalyn XL': ['Limited Edition', 'Master', 'Ultimate']
+    'Adrenalyn XL': ['Limited Edition', 'Master', 'Ultimate', 'Premier'],
+    'FIFA 365': ['Sticker', 'Foil Sticker']
   }},
   { sports: ['Soccer'], years: [2015, 9999], brand: 'Panini Prizm Premier League', sets: {
-    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Breakaway']
+    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Breakaway', 'Hyper'],
+    'Rookies': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Gold']
   }},
   { sports: ['Soccer'], years: [2018, 9999], brand: 'Topps Match Attax', sets: {
-    'Base': ['Limited Edition', '100 Club', 'Hat-Trick Hero']
+    'Base': ['Limited Edition', '100 Club', 'Hat-Trick Hero', 'Master']
   }},
 
-  // ===== RACING =====
-  { sports: ['Racing'], years: [1991, 9999], brand: 'Panini', sets: {
-    'Prizm Racing': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold'],
-    'Donruss Racing': ['Holo', 'Press Proof', 'Gold']
+  // ============================================================
+  // RACING
+  // ============================================================
+  { sports: ['Racing'], years: [2011, 9999], brand: 'Panini', sets: {
+    'Prizm Racing': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Black', 'Gold', 'Hyper', 'Pink Ice', 'Blue Ice'],
+    'Donruss Racing': ['Holo', 'Press Proof', 'Gold', 'Press Proof Silver', 'Press Proof Gold']
   }},
-  { sports: ['Racing'], years: [1988, 2014], brand: 'Press Pass', sets: {
+  { sports: ['Racing'], years: [2000, 2014], brand: 'Press Pass', sets: {
     'Base': ['Holographic Foil', 'Gold', 'Silver'],
     'Showcase': ['Silver', 'Gold', 'Holographic']
   }},
 
-  // ===== BOXING / MMA =====
+  // ============================================================
+  // BOXING / MMA
+  // ============================================================
   { sports: ['Boxing/MMA'], years: [2009, 9999], brand: 'Topps UFC', sets: {
     'Knockout': ['Silver', 'Gold', 'Red', 'Black'],
     'Strike': ['Silver', 'Gold', 'Red'],
     'Champions': ['Silver', 'Gold', 'Onyx', 'Ruby']
   }},
   { sports: ['Boxing/MMA'], years: [2018, 9999], brand: 'Panini Prizm UFC', sets: {
-    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Mojo', 'Hyper'],
-    'Rookies': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold']
+    'Base': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Mojo', 'Hyper', 'Pink Ice', 'Blue Ice', 'Green Ice', 'Purple Ice', 'Red Ice', 'Disco'],
+    'Rookies': ['Silver Prizm', 'Blue', 'Red', 'Green', 'Orange', 'Purple', 'Pink', 'Black', 'Gold', 'Mojo', 'Pink Ice', 'Blue Ice', 'Green Ice']
   }},
 
-  // ===== GOLF =====
+  // ============================================================
+  // GOLF
+  // ============================================================
   { sports: ['Golf'], years: [2001, 9999], brand: 'Upper Deck', sets: {
     'SP Authentic Golf': ['Future Watch', 'Limited'],
     'SPx Golf': ['Spectrum', 'Gold']
+  }},
+  { sports: ['Golf'], years: [2021, 9999], brand: 'Topps', sets: {
+    'Museum Collection Golf': ['Sapphire', 'Emerald', 'Ruby', 'Onyx', 'Gold']
   }}
 ];
 
@@ -1640,6 +1965,10 @@ function resetForm() {
   recalcOptions(); // rebuild dropdowns for default sport, no year
   $('#ai-status').className = 'ai-status';
   $('#btn-save').textContent = 'Save to Vault';
+  // Hide sales panel
+  const salesPanel = $('#sales-panel');
+  if (salesPanel) salesPanel.style.display = 'none';
+  _salesData = { all: [], match: [], sources: [], context: null };
 }
 
 function fillFormFromCard(card) {
@@ -1920,13 +2249,119 @@ async function lookupPricing(opts = {}) {
       const cardNumHint = !cardNumber ? ' Try adding the card number printed on the card.' : '';
       statusEl.textContent = `💲 No clear comps found. ${parsed.summary || 'Try entering more details (set, parallel, etc.)'}${cardNumHint}`;
     }
+
+    // Render the sales list (regardless of whether we got a price estimate, individual
+    // sales may still be useful — and the user can verify Claude's reasoning)
+    renderSalesList(parsed.sales || [], parsed.sources || [], { player, year, brand, setName, parallel, cardNumber });
   } catch (err) {
     console.error('Pricing lookup failed:', err);
     recalcOptions();
     statusEl.className = 'ai-status show error';
     statusEl.textContent = `⚠️ Pricing lookup failed: ${err.message}`;
+    // Hide sales panel on error
+    const panel = $('#sales-panel');
+    if (panel) panel.style.display = 'none';
   }
 }
+
+// -------- Sales list renderer --------
+// Stores both filtered and full sales for tab switching
+let _salesData = { all: [], match: [], sources: [], context: null };
+
+function renderSalesList(sales, sources, context) {
+  const panel = $('#sales-panel');
+  if (!panel) return;
+  if (!sales || !sales.length) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  // Normalize each sale: tolerate field naming variation from Claude
+  const normalized = sales.map(s => ({
+    title: s.title || s.description || s.name || '',
+    price: typeof s.price === 'number' ? s.price : parseFloat(s.price) || 0,
+    date: s.date || s.soldDate || '',
+    url: s.url || s.link || '',
+    parallel: s.parallel || s.variant || '',
+    grade: s.grade || (s.graded ? 'graded' : ''),
+    isExactParallel: !!s.isExactParallel
+  }));
+
+  // Auto-classify each sale as exact-parallel or not, if not already flagged.
+  // "exact match" means: target parallel string (or "base" if none) appears in the sale title or parallel field
+  const targetParallel = (context.parallel || '').trim().toLowerCase();
+  for (const s of normalized) {
+    if (s.isExactParallel) continue;
+    const hay = (s.title + ' ' + s.parallel).toLowerCase();
+    if (!targetParallel) {
+      // Looking for base — sale shouldn't mention any parallel name
+      const looksLikeBase = !/(refractor|prizm|mojo|disco|hyper|optic|pulsar|pandora|ice|pink|blue|green|red|orange|gold|black|silver|purple|teal|nebula|wave|atomic|lava|sapphire|tiger|camo|rainbow)/i.test(hay);
+      s.isExactParallel = looksLikeBase;
+    } else {
+      s.isExactParallel = hay.includes(targetParallel);
+    }
+  }
+
+  _salesData.all = normalized.slice().sort((a,b) => (b.price||0) - (a.price||0));
+  _salesData.match = normalized.filter(s => s.isExactParallel).sort((a,b) => (b.price||0) - (a.price||0));
+  _salesData.sources = sources || [];
+  _salesData.context = context;
+
+  // Default to "match" tab if there are matching parallel sales, else "all"
+  const initialTab = _salesData.match.length > 0 ? 'match' : 'all';
+  setSalesTab(initialTab);
+  panel.style.display = '';
+}
+
+function setSalesTab(tab) {
+  $('#tab-match').classList.toggle('active', tab === 'match');
+  $('#tab-all').classList.toggle('active', tab === 'all');
+  const list = tab === 'match' ? _salesData.match : _salesData.all;
+  const body = $('#sales-body');
+  const footer = $('#sales-footer');
+  const ctx = _salesData.context || {};
+
+  if (!list.length) {
+    body.innerHTML = `<div class="sales-empty">${tab === 'match' ? 'No exact-parallel matches found. Switch to "All parallels" to see other sales.' : 'No sales returned.'}</div>`;
+  } else {
+    body.innerHTML = list.map(s => {
+      const date = s.date ? `<span>${esc(s.date)}</span>` : '';
+      const grade = s.grade ? `<span>${esc(s.grade)}</span>` : '';
+      const parBadge = s.isExactParallel
+        ? `<span class="sale-parallel-badge exact">match</span>`
+        : (s.parallel ? `<span class="sale-parallel-badge">${esc(s.parallel)}</span>` : '');
+      const titleHtml = s.url
+        ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="sale-row">
+             <div class="sale-info">
+               <div class="sale-title">${esc(s.title || 'Sale')}</div>
+               <div class="sale-meta">${date}${grade}${parBadge}</div>
+             </div>
+             <div class="sale-price">$${(s.price || 0).toFixed(2)}</div>
+           </a>`
+        : `<div class="sale-row">
+             <div class="sale-info">
+               <div class="sale-title">${esc(s.title || 'Sale')}</div>
+               <div class="sale-meta">${date}${grade}${parBadge}</div>
+             </div>
+             <div class="sale-price">$${(s.price || 0).toFixed(2)}</div>
+           </div>`;
+      return titleHtml;
+    }).join('');
+  }
+
+  // Footer: build a fallback eBay sold listings search URL using the player + year + brand
+  const ebayQuery = encodeURIComponent([ctx.year, ctx.brand, ctx.setName, ctx.player, ctx.cardNumber ? `#${ctx.cardNumber}` : ''].filter(Boolean).join(' '));
+  const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${ebayQuery}&LH_Sold=1&LH_Complete=1`;
+  const counts = `<span>${_salesData.match.length} matching · ${_salesData.all.length} total</span>`;
+  const ebayLink = `<a href="${ebayUrl}" target="_blank" rel="noopener">Search eBay sold →</a>`;
+  footer.innerHTML = counts + ebayLink;
+}
+
+// Wire up tab clicks (event delegation since tabs may not exist on initial load)
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'tab-match') setSalesTab('match');
+  else if (e.target && e.target.id === 'tab-all') setSalesTab('all');
+});
 
 // -------- Custom fields renderer --------
 function renderCustomFields(values = {}) {
@@ -2958,7 +3393,16 @@ $('#btn-cam-stop').addEventListener('click', stopCamera);
 $('#btn-manual-cap').addEventListener('click', manualCapture);
 
 document.addEventListener('change', (e) => {
-  if (e.target.id === 'opt-auto-capture') state.smartCam.options.autoCapture = e.target.checked;
+  if (e.target.id === 'opt-auto-capture') {
+    state.smartCam.options.autoCapture = e.target.checked;
+    const title = $('#capture-mode-title');
+    const desc = $('#capture-mode-desc');
+    if (title) title.textContent = e.target.checked ? 'Auto-Snap: ON' : 'Manual Only';
+    if (desc) desc.textContent = e.target.checked
+      ? 'Camera will auto-capture when card is focused. Toggle off for manual-only.'
+      : 'Tap the screen or press Manual Capture to take a photo. Auto-capture is disabled.';
+    toast(e.target.checked ? 'Auto-snap enabled' : 'Manual capture only');
+  }
   if (e.target.id === 'opt-angle-scan') state.smartCam.options.angleScan = e.target.checked;
   if (e.target.id === 'opt-dedupe') state.smartCam.options.dedupe = e.target.checked;
   if (e.target.id === 'opt-special-shapes') {
@@ -3825,10 +4269,10 @@ export default {
 
       const apiBody = {
         model,
-        max_tokens: 2000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-        system: 'You are a sports card pricing analyst. Search the web for RECENT SOLD comps (not asking prices) and estimate the price. CRITICAL RULES: (1) CARD NUMBER IS PRIMARY DISAMBIGUATOR — within a set, two cards of the same player can have very different prices (base vs SP, photo variation, Update Series). When a card number is provided, your search queries MUST include it (e.g. "2023 Topps Chrome #150 Aaron Judge sold"). Verify each comp matches the number. (2) RAW means UNGRADED — exclude PSA/BGS/SGC/CGC slabbed sales unless the user specified a grade. (3) Only SOLD prices, never asking prices — prefer eBay sold filter (LH_Sold=1), 130point.com, PSA APR. (4) EXCLUDE OUTLIERS — drop highest and lowest before median; ignore any sale >3x the next-highest. (5) EXACT MATCH on player + year + brand + set + parallel + card number + attributes. Do not mix base cards with parallels or autos. (6) Use the MEDIAN, not the average. (7) Confidence: high = 5+ matching comps in 60 days with verified card number; medium = 3-4; low = <3 or missing card number. If you cannot find enough exact-match sold comps, return all numbers as 0 — do NOT guess. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound (number), confidence (low/medium/high), summary (string), and sources (array of URLs).',
-        messages: [{ role: 'user', content: 'Find recent SOLD comps and estimate the price for this sports card. Be conservative — bias toward the median of clean sold comps that match ALL criteria.\\n\\nCard: ' + cardDesc + constraintsBlock }]
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
+        system: 'You are a sports card pricing analyst. Search the web for RECENT SOLD comps and return both an estimate AND a list of individual sales. SEARCH STRATEGY: First search the EXACT card+parallel; then do a broader search for the same player+year+set without parallel filter for context. CRITICAL RULES: (1) CARD NUMBER is PRIMARY DISAMBIGUATOR. (2) RAW means UNGRADED for the price estimate — but you may include graded sales in the sales list with grade flagged. (3) SOLD prices only — never asking prices. (4) EXCLUDE OUTLIERS from estimate (drop highest/lowest, ignore >3x next-highest). (5) PARALLEL MATCHING: for each sale, set isExactParallel=true ONLY if it matches user\\'s specified parallel exactly (or "base" when no parallel specified). (6) Use the MEDIAN. (7) Confidence: high=5+ exact-parallel comps in 60 days, medium=3-4, low=<3. Return ONLY a JSON object with rawPriceLow, rawPriceMedian, rawPriceHigh (numbers in USD), salesFound, confidence, summary, sources, AND a sales array of up to 15 entries with {title, price, date, url, parallel, grade, isExactParallel}. The price estimate is computed from exact-parallel raw sales only. Include other-parallel sales in the sales array for context.',
+        messages: [{ role: 'user', content: 'Find recent SOLD comps for this sports card. Return both the price estimate AND a list of individual sales found. Match the specified parallel first, then include other parallels of the same card for context.\\n\\nCard: ' + cardDesc + constraintsBlock }]
       };
 
       const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
